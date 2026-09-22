@@ -1,0 +1,244 @@
+import * as XLSX from 'xlsx';
+import { MemberRecord, VillageStats } from './types';
+
+// Column mappings between Khmer headers and MemberRecord keys
+export const COLUMN_DEFINITIONS = [
+  { key: 'id', label: 'ល.រ', width: 8, colLetter: 'A' },
+  { key: 'fullName', label: 'នាមត្រកូល-នាមខ្លួន (មេគ្រួសារ)', width: 24, colLetter: 'B' },
+  { key: 'gender', label: 'ភេទ', width: 8, colLetter: 'C' },
+  { key: 'decimalAge', label: 'អាយុលំអៀង', width: 12, colLetter: 'D' },
+  { key: 'age', label: 'អាយុ', width: 10, colLetter: 'E' },
+  { key: 'dob', label: 'ថ្ងៃខែឆ្នាំកំណើត', width: 16, colLetter: 'F' },
+  { key: 'idCardNo', label: 'លេខអត្តសញ្ញាណប័ណ្ណ', width: 20, colLetter: 'G' },
+  { key: 'necOffice', label: 'បញ្ជី គជប - ឈ្មោះការិយាល័យ', width: 24, colLetter: 'H' },
+  { key: 'communeCode', label: 'កូដឃុំ', width: 10, colLetter: 'I' },
+  { key: 'officeNo', label: 'លេខការិ', width: 12, colLetter: 'J' },
+  { key: 'necOrderNo', label: 'ល.រ គជប', width: 12, colLetter: 'K' },
+  { key: 'houseNo', label: 'លេខផ្ទះ', width: 10, colLetter: 'L' },
+  { key: 'partyGroup', label: 'ក្រុមបក្ស', width: 12, colLetter: 'M' },
+  { key: 'partyRole', label: 'តួនាទីក្នុងបក្ស', width: 18, colLetter: 'N' },
+  { key: 'occupation', label: 'មុខរបរ', width: 14, colLetter: 'O' },
+  { key: 'remarks', label: 'ផ្សេងៗ / ស្ថានភាព', width: 24, colLetter: 'P' },
+] as const;
+
+/**
+ * Export data to Microsoft Excel (.xlsx) file that can be directly uploaded to Google Drive / opened in Google Sheets
+ */
+export function exportToExcel(records: MemberRecord[], stats: VillageStats, filename = 'បញ្ជីឈ្មោះសមាជិកបក្ស_ភូមិរលួស.xlsx') {
+  const wb = XLSX.utils.book_new();
+
+  // 1. Members Sheet
+  const headerRow = COLUMN_DEFINITIONS.map(c => c.label);
+  const dataRows = records.map(r => [
+    r.id,
+    r.fullName,
+    r.gender,
+    r.decimalAge,
+    r.age,
+    r.dob,
+    r.idCardNo,
+    r.necOffice,
+    r.communeCode,
+    r.officeNo,
+    r.necOrderNo,
+    r.houseNo,
+    r.partyGroup,
+    r.partyRole,
+    r.occupation,
+    r.remarks,
+  ]);
+
+  const wsData = [
+    ['គណបក្សប្រជាជនកម្ពុជា'],
+    ['បញ្ជីរាយនាម សមាជិកសមាជិកាសម្ព័ន្ធគ្រួសារ ក្នុងភូមិរលួស ឃុំបន្ទាយស្ទោង ស្រុកស្ទោង ខេត្តកំពង់ធំ'],
+    [],
+    headerRow,
+    ...dataRows
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 8 },
+    { wch: 24 },
+    { wch: 8 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 16 },
+    { wch: 20 },
+    { wch: 24 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 26 },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'បញ្ជីឈ្មោះសមាជិក');
+
+  // 2. Statistics Summary Sheet
+  const femaleCount = records.filter(r => r.gender === 'ស').length;
+  const statsRows = [
+    ['សង្ខេបស្ថិតិទិន្នន័យ', 'ចំនួន', 'ឯកតា'],
+    ['ចំនួនគ្រួសារសរុប', stats.totalFamilies, 'គ្រួសារ'],
+    ['ចំនួនខ្នងផ្ទះ', stats.totalRoofs, 'ខ្នង'],
+    ['មេគ្រួសារបក្ស', stats.partyFamilyHeads, 'មេគ្រួសារ'],
+    ['សមាជិកបក្សសរុប', records.length, 'នាក់'],
+    ['សមាជិកបក្សជាស្ត្រី', femaleCount, 'នាក់'],
+    ['ភាគរយសមាជិកបក្ស', `${((records.length / (stats.votersList2025 || 1)) * 100).toFixed(2)}%`, 'ភាគរយ'],
+    ['បញ្ជីឈ្មោះបោះឆ្នោត 2025', stats.votersList2025, 'នាក់'],
+    ['ស្រីក្នុងបញ្ជីបោះឆ្នោត', stats.votersFemale, 'នាក់'],
+    ['យុវជន (អាយុ 18-35)', records.filter(r => r.age >= 18 && r.age <= 35).length, 'នាក់'],
+    ['ចាស់ជរា (អាយុ 65 ឆ្នាំឡើង)', records.filter(r => r.age >= 65).length, 'នាក់'],
+    ['រៀបការក្នុងមូលដ្ឋាន', records.filter(r => r.remarks.includes('រៀបការ(មូលដ្ឋាន)')).length, 'នាក់'],
+    ['រៀបការសំណាក់ស្រុក', records.filter(r => r.remarks.includes('រៀបការ(សំណាក់ស្រុក)')).length, 'នាក់'],
+    ['នៅលីវសំណាក់ស្រុក', records.filter(r => r.remarks.includes('នៅលីវ(សំណាក់ស្រុក)')).length, 'នាក់'],
+    ['នៅលីវក្នុងមូលដ្ឋាន', records.filter(r => r.remarks.includes('នៅលីវ(មូលដ្ឋាន)')).length, 'នាក់'],
+    ['សំណាក់ស្រុកប្រទេសថៃ', records.filter(r => r.remarks.includes('ថៃ')).length, 'នាក់'],
+    ['រៀបការផ្លាស់ទីលំនៅ', records.filter(r => r.remarks.includes('ផ្លាស់ទីលំនៅ')).length, 'នាក់'],
+  ];
+
+  const wsStats = XLSX.utils.aoa_to_sheet(statsRows);
+  wsStats['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsStats, 'សង្ខេបស្ថិតិ');
+
+  // 3. Age by Gender Breakdown Sheet (សរុបស្រី-ប្រុសតាមអាយុ)
+  const maleRecords = records.filter(r => r.gender === 'ប');
+  const femaleRecords = records.filter(r => r.gender === 'ស');
+
+  const ageGroups = [
+    { label: 'ក្រោម ១៨ ឆ្នាំ', min: 0, max: 17 },
+    { label: '១៨ - ៣៥ ឆ្នាំ (យុវជនបក្ស)', min: 18, max: 35 },
+    { label: '៣៦ - ៥០ ឆ្នាំ (វ័យកណ្តាល)', min: 36, max: 50 },
+    { label: '៥១ - ៦៤ ឆ្នាំ (វ័យចំណាស់)', min: 51, max: 64 },
+    { label: '៦៥ ឆ្នាំឡើង (ចាស់ជរា)', min: 65, max: 150 },
+  ];
+
+  const ageSheetData = [
+    ['តារាងសរុបសមាជិក ស្រី និង ប្រុស តាមក្រុមអាយុ'],
+    ['ភូមិរលួស ឃុំបន្ទាយស្ទោង ស្រុកស្ទោង ខេត្តកំពង់ធំ'],
+    [],
+    ['ក្រុមអាយុ', 'ចំនួនប្រុស (នាក់)', 'ភាគរយប្រុស (%)', 'ចំនួនស្រី (នាក់)', 'ភាគរយស្រី (%)', 'សរុប (នាក់)', 'សមាមាត្រសរុប (%)', 'មេគ្រួសារសរុប'],
+  ];
+
+  for (const g of ageGroups) {
+    const inBracket = records.filter(r => r.age >= g.min && r.age <= g.max);
+    const m = inBracket.filter(r => r.gender === 'ប').length;
+    const f = inBracket.filter(r => r.gender === 'ស').length;
+    const tot = inBracket.length;
+    const heads = inBracket.filter(r => r.partyRole.includes('មេគ្រួសារ')).length;
+
+    ageSheetData.push([
+      g.label,
+      String(m),
+      tot > 0 ? `${((m / tot) * 100).toFixed(1)}%` : '0%',
+      String(f),
+      tot > 0 ? `${((f / tot) * 100).toFixed(1)}%` : '0%',
+      String(tot),
+      records.length > 0 ? `${((tot / records.length) * 100).toFixed(1)}%` : '0%',
+      String(heads),
+    ]);
+  }
+
+  // Grand total row
+  ageSheetData.push([
+    'សរុបរួម',
+    String(maleRecords.length),
+    records.length > 0 ? `${((maleRecords.length / records.length) * 100).toFixed(1)}%` : '0%',
+    String(femaleRecords.length),
+    records.length > 0 ? `${((femaleRecords.length / records.length) * 100).toFixed(1)}%` : '0%',
+    String(records.length),
+    '100%',
+    String(records.filter(r => r.partyRole.includes('មេគ្រួសារ')).length),
+  ]);
+
+  const wsAge = XLSX.utils.aoa_to_sheet(ageSheetData);
+  wsAge['!cols'] = [
+    { wch: 28 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 16 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsAge, 'សរុបអាយុតាមភេទ');
+
+  XLSX.writeFile(wb, filename);
+}
+
+/**
+ * Export data to UTF-8 CSV with BOM for standard Google Sheets / Excel import
+ */
+export function exportToCSV(records: MemberRecord[], filename = 'បញ្ជីឈ្មោះសមាជិក_google_sheets.csv') {
+  const header = COLUMN_DEFINITIONS.map(c => `"${c.label}"`).join(',');
+  const rows = records.map(r => [
+    r.id,
+    `"${r.fullName.replace(/"/g, '""')}"`,
+    `"${r.gender}"`,
+    r.decimalAge,
+    r.age,
+    `"${r.dob}"`,
+    `"${r.idCardNo}"`,
+    `"${r.necOffice}"`,
+    `"${r.communeCode}"`,
+    `"${r.officeNo}"`,
+    `"${r.necOrderNo}"`,
+    `"${r.houseNo}"`,
+    r.partyGroup,
+    `"${r.partyRole}"`,
+    `"${r.occupation}"`,
+    `"${r.remarks.replace(/"/g, '""')}"`,
+  ].join(','));
+
+  const csvContent = '\uFEFF' + [header, ...rows].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Copy entire table as TSV directly to clipboard, allowing direct paste into Google Sheets (Ctrl + V)
+ */
+export async function copyForGoogleSheets(records: MemberRecord[]): Promise<boolean> {
+  const header = COLUMN_DEFINITIONS.map(c => c.label).join('\t');
+  const rows = records.map(r => [
+    r.id,
+    r.fullName,
+    r.gender,
+    r.decimalAge,
+    r.age,
+    r.dob,
+    r.idCardNo,
+    r.necOffice,
+    r.communeCode,
+    r.officeNo,
+    r.necOrderNo,
+    r.houseNo,
+    r.partyGroup,
+    r.partyRole,
+    r.occupation,
+    r.remarks,
+  ].join('\t'));
+
+  const tsv = [header, ...rows].join('\n');
+
+  try {
+    await navigator.clipboard.writeText(tsv);
+    return true;
+  } catch (err) {
+    console.error('Failed to copy to clipboard', err);
+    return false;
+  }
+}

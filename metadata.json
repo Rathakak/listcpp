@@ -1,0 +1,6 @@
+{
+  "name": "ប្រព័ន្ធគ្រប់គ្រងទិន្នន័យបញ្ជីឈ្មោះ (Google Sheets)",
+  "description": "កម្មវិធីគ្រប់គ្រងទិន្នន័យបញ្ជីឈ្មោះសមាជិក គជប សរុបស្រី-ប្រុសតាមក្រុមអាយុ និងស្ថិតិគ្រួសារ ដូចទៅនឹង Google Sheets & Excel ជាមួយមុខងារ Print របាយការណ៍ផ្លូវការ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

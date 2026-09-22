@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@layer base {
+  body {
+    font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+}
+
+.font-moul {
+  font-family: var(--font-moul), 'Moul', cursive, serif;
+}
+
+.font-kantumruy {
+  font-family: var(--font-kantumruy), 'Kantumruy Pro', sans-serif;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm 6mm;
+  }
+  body {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
+
