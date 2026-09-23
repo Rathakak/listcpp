@@ -1,17 +1,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MemberRecord, VillageStats } from '@/lib/types';
+import { MemberRecord, VillageStats, VitalEventRecord, GeneralPopulationStats, OrgLeaderRecord } from '@/lib/types';
 import { initialMembers, initialVillageStats } from '@/lib/initialData';
+import { initialVitalEvents, initialGeneralPopulation } from '@/lib/vitalInitialData';
+import { initialOrgLeaders } from '@/lib/orgInitialData';
 import SpreadsheetView from '@/components/SpreadsheetView';
 import MemberModal from '@/components/MemberModal';
 import StatsPanel from '@/components/StatsPanel';
 import AgeGenderSummary from '@/components/AgeGenderSummary';
 import OfficialPrintView from '@/components/OfficialPrintView';
+import DemographicVitalReport from '@/components/DemographicVitalReport';
+import OrgStructureView from '@/components/OrgStructureView';
 import { X, BarChart3, Users } from 'lucide-react';
 
 const STORAGE_KEY_MEMBERS = 'party_members_list_v1';
 const STORAGE_KEY_STATS = 'party_village_stats_v1';
+const STORAGE_KEY_VITAL_EVENTS = 'party_village_vital_events_v1';
+const STORAGE_KEY_GEN_POP = 'party_village_gen_pop_v1';
+const STORAGE_KEY_ORG_LEADERS = 'party_banteay_stoung_org_leaders_v1';
 
 export default function HomePage() {
   const [records, setRecords] = useState<MemberRecord[]>(() => {
@@ -33,12 +40,93 @@ export default function HomePage() {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(STORAGE_KEY_STATS);
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (!parsed.teamLeader || parsed.teamLeader === 'នូវ នុច' || parsed.teamLeader === 'ផូ វុជ') {
+            parsed.teamLeader = 'ផូ វុធ';
+          }
+          return parsed;
+        }
       } catch (e) {
         console.error(e);
       }
     }
     return initialVillageStats;
+  });
+
+  const [vitalEvents, setVitalEvents] = useState<VitalEventRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_VITAL_EVENTS);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return initialVitalEvents;
+  });
+
+  const [genPopStats, setGenPopStats] = useState<GeneralPopulationStats>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_GEN_POP);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.villageTotalPopulation) return parsed;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return initialGeneralPopulation;
+  });
+
+  const [orgLeaders, setOrgLeaders] = useState<OrgLeaderRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_ORG_LEADERS);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Migrate old placeholder villages to new official villages if present
+            const villageMigration: Record<string, string> = {
+              'ភូមិបឹងប្រិយ៍': 'ភូមិបេង',
+              'ភូមិគោកព្រេច': 'ភូមិកុកគ្រោះ',
+              'ភូមិត្រពាំងជ័រ': 'ភូមិស្រោមដែក',
+              'ភូមិកំពង់ក្តី': 'ភូមិតាម៉ើ',
+              'ភូមិព្រៃតាត្រាវ': 'ភូមិបវែង'
+            };
+            const migrated = parsed.map((item: OrgLeaderRecord) => {
+              if (item.villageName && villageMigration[item.villageName]) {
+                const oldV = item.villageName;
+                const newV = villageMigration[oldV];
+                return {
+                  ...item,
+                  villageName: newV,
+                  role: item.role ? item.role.replace(oldV, newV) : item.role,
+                  responsibilities: item.responsibilities ? item.responsibilities.replace(oldV, newV) : item.responsibilities
+                };
+              }
+              return item;
+            });
+
+            // Also merge any newly introduced village leaders that aren't in localStorage yet
+            const existingIds = new Set(migrated.map((m: OrgLeaderRecord) => m.id));
+            const missingLeaders = initialOrgLeaders.filter(initL => !existingIds.has(initL.id));
+            if (missingLeaders.length > 0) {
+              return [...migrated, ...missingLeaders];
+            }
+            return migrated;
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return initialOrgLeaders;
   });
 
   const isLoaded = React.useSyncExternalStore(
@@ -47,8 +135,8 @@ export default function HomePage() {
     () => false
   );
 
-  // View state: 'spreadsheet' | 'print'
-  const [currentView, setCurrentView] = useState<'spreadsheet' | 'print'>('spreadsheet');
+  // View state: 'spreadsheet' | 'print' | 'vitalReport' | 'orgStructure'
+  const [currentView, setCurrentView] = useState<'spreadsheet' | 'print' | 'vitalReport' | 'orgStructure'>('spreadsheet');
 
   // Modals state
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -78,6 +166,39 @@ export default function HomePage() {
     }
   }, [stats, isLoaded]);
 
+  // Save vitalEvents to localStorage
+  useEffect(() => {
+    if (isLoaded && vitalEvents.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY_VITAL_EVENTS, JSON.stringify(vitalEvents));
+      } catch (e) {
+        console.error('Failed to save vital events to localStorage', e);
+      }
+    }
+  }, [vitalEvents, isLoaded]);
+
+  // Save genPopStats to localStorage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEY_GEN_POP, JSON.stringify(genPopStats));
+      } catch (e) {
+        console.error('Failed to save general pop stats to localStorage', e);
+      }
+    }
+  }, [genPopStats, isLoaded]);
+
+  // Save orgLeaders to localStorage
+  useEffect(() => {
+    if (isLoaded) {
+      try {
+        localStorage.setItem(STORAGE_KEY_ORG_LEADERS, JSON.stringify(orgLeaders));
+      } catch (e) {
+        console.error('Failed to save org leaders to localStorage', e);
+      }
+    }
+  }, [orgLeaders, isLoaded]);
+
   // Update a single member
   const handleUpdateRecord = (updated: MemberRecord) => {
     setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
@@ -105,12 +226,16 @@ export default function HomePage() {
 
   // Reset data to initial 265 members
   const handleResetData = () => {
-    if (confirm('តើអ្នកពិតជាចង់កំណត់ទិន្នន័យឡើងវិញដូចក្នុងឯកសារដើម (265 នាក់) មែនទេ?')) {
-      setRecords(initialMembers);
-      setStats(initialVillageStats);
-      localStorage.removeItem(STORAGE_KEY_MEMBERS);
-      localStorage.removeItem(STORAGE_KEY_STATS);
-    }
+    setRecords(initialMembers);
+    setStats(initialVillageStats);
+    setVitalEvents(initialVitalEvents);
+    setGenPopStats(initialGeneralPopulation);
+    setOrgLeaders(initialOrgLeaders);
+    localStorage.removeItem(STORAGE_KEY_MEMBERS);
+    localStorage.removeItem(STORAGE_KEY_STATS);
+    localStorage.removeItem(STORAGE_KEY_VITAL_EVENTS);
+    localStorage.removeItem(STORAGE_KEY_GEN_POP);
+    localStorage.removeItem(STORAGE_KEY_ORG_LEADERS);
   };
 
   if (!isLoaded) {
@@ -121,6 +246,32 @@ export default function HomePage() {
           <p className="text-sm font-semibold text-slate-700">កំពុងដំណើរការទិន្នន័យ Google Sheets...</p>
         </div>
       </div>
+    );
+  }
+
+  // If in Organizational Structure mode (រចនាសម្ព័ន្ធបក្ស មានរូបថត)
+  if (currentView === 'orgStructure') {
+    return (
+      <OrgStructureView
+        leaders={orgLeaders}
+        onUpdateLeaders={setOrgLeaders}
+        onBack={() => setCurrentView('spreadsheet')}
+      />
+    );
+  }
+
+  // If in Demographic & Vital Report mode (សម្រាល - មរណៈ)
+  if (currentView === 'vitalReport') {
+    return (
+      <DemographicVitalReport
+        records={records}
+        stats={stats}
+        vitalEvents={vitalEvents}
+        genPopStats={genPopStats}
+        onUpdateVitalEvents={setVitalEvents}
+        onUpdateGenPopStats={setGenPopStats}
+        onBack={() => setCurrentView('spreadsheet')}
+      />
     );
   }
 
@@ -152,6 +303,8 @@ export default function HomePage() {
         onOpenStats={() => setIsStatsModalOpen(true)}
         onOpenPrint={() => setCurrentView('print')}
         onOpenAgeSummary={() => setIsAgeModalOpen(true)}
+        onOpenVitalReport={() => setCurrentView('vitalReport')}
+        onOpenOrgStructure={() => setCurrentView('orgStructure')}
       />
 
       {/* Add / Edit Member Modal */}
@@ -211,7 +364,7 @@ export default function HomePage() {
               </button>
             </div>
             <div className="p-6 max-h-[80vh] overflow-y-auto">
-              <StatsPanel records={records} stats={stats} />
+              <StatsPanel records={records} stats={stats} onUpdateStats={setStats} />
             </div>
           </div>
         </div>

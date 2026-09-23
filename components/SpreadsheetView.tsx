@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { MemberRecord, VillageStats } from '@/lib/types';
 import { COLUMN_DEFINITIONS, exportToExcel, exportToCSV, copyForGoogleSheets } from '@/lib/spreadsheetHelpers';
 import AgeGenderSummary from './AgeGenderSummary';
 import { 
-  FileSpreadsheet, Download, Copy, Printer, Plus, Trash2, 
+  FileSpreadsheet, Download, Copy, Printer, FileDown, Plus, Trash2, 
   Search, Filter, Check, Edit2, RotateCcw,
-  BarChart3, ChevronDown, CheckSquare, Square, Users, Calendar
+  BarChart3, ChevronDown, CheckSquare, Square, Users, Calendar, X,
+  AlertTriangle, Baby, ShieldCheck, Building2
 } from 'lucide-react';
 
 interface SpreadsheetViewProps {
@@ -21,6 +23,8 @@ interface SpreadsheetViewProps {
   onOpenStats: () => void;
   onOpenPrint: () => void;
   onOpenAgeSummary?: () => void;
+  onOpenVitalReport?: () => void;
+  onOpenOrgStructure?: () => void;
 }
 
 export default function SpreadsheetView({
@@ -34,6 +38,8 @@ export default function SpreadsheetView({
   onOpenStats,
   onOpenPrint,
   onOpenAgeSummary,
+  onOpenVitalReport,
+  onOpenOrgStructure,
 }: SpreadsheetViewProps) {
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,20 +67,50 @@ export default function SpreadsheetView({
   const [activeTab, setActiveTab] = useState<'members' | 'ageSummary'>('members');
 
   const cellInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut Ctrl+K or Cmd+K to focus search input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Filtered records
   const filteredRecords = useMemo(() => {
+    // Normalization helper for Khmer and Arabic numerals
+    const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+    const normalizeDigits = (str: string) => {
+      let res = str;
+      khmerDigits.forEach((kd, idx) => {
+        res = res.replaceAll(kd, String(idx));
+      });
+      return res;
+    };
+
     return records.filter((r) => {
-      // Search matches
+      // Search matches (Real-time by Name, ID Card No, Row ID, NEC No, etc.)
       if (searchTerm) {
-        const query = searchTerm.toLowerCase().trim();
-        const matchesName = r.fullName.toLowerCase().includes(query);
-        const matchesId = r.idCardNo.toLowerCase().includes(query);
-        const matchesNec = r.necOrderNo.toLowerCase().includes(query);
-        const matchesRole = r.partyRole.toLowerCase().includes(query);
-        const matchesRemark = r.remarks.toLowerCase().includes(query);
-        const matchesOcc = r.occupation.toLowerCase().includes(query);
-        if (!matchesName && !matchesId && !matchesNec && !matchesRole && !matchesRemark && !matchesOcc) {
+        const rawQuery = searchTerm.toLowerCase().trim();
+        const normQuery = normalizeDigits(rawQuery);
+
+        const matchesName = r.fullName.toLowerCase().includes(rawQuery);
+        const matchesIdCard = r.idCardNo.toLowerCase().includes(rawQuery) || r.idCardNo.toLowerCase().includes(normQuery);
+        const matchesRowId = String(r.id) === normQuery || String(r.id).includes(normQuery);
+        const matchesNec = r.necOrderNo.toLowerCase().includes(rawQuery) || r.necOrderNo.toLowerCase().includes(normQuery);
+        const matchesCommune = r.communeCode.toLowerCase().includes(rawQuery) || r.communeCode.toLowerCase().includes(normQuery);
+        const matchesOffice = r.officeNo.toLowerCase().includes(rawQuery) || r.officeNo.toLowerCase().includes(normQuery);
+        const matchesRole = r.partyRole.toLowerCase().includes(rawQuery);
+        const matchesRemark = r.remarks.toLowerCase().includes(rawQuery);
+        const matchesOcc = r.occupation.toLowerCase().includes(rawQuery);
+
+        if (!matchesName && !matchesIdCard && !matchesRowId && !matchesNec && !matchesCommune && !matchesOffice && !matchesRole && !matchesRemark && !matchesOcc) {
           return false;
         }
       }
@@ -154,8 +190,6 @@ export default function SpreadsheetView({
     let parsedVal: any = cellEditValue;
     if (editingCell.colKey === 'age' || editingCell.colKey === 'partyGroup') {
       parsedVal = parseInt(cellEditValue, 10) || 0;
-    } else if (editingCell.colKey === 'decimalAge') {
-      parsedVal = parseFloat(cellEditValue) || 0;
     }
 
     onUpdateRecord({
@@ -170,8 +204,6 @@ export default function SpreadsheetView({
     let parsedVal: any = val;
     if (activeCell.colKey === 'age' || activeCell.colKey === 'partyGroup') {
       parsedVal = parseInt(val, 10) || 0;
-    } else if (activeCell.colKey === 'decimalAge') {
-      parsedVal = parseFloat(val) || 0;
     }
     onUpdateRecord({
       ...activeRecord,
@@ -194,13 +226,72 @@ export default function SpreadsheetView({
     }
   };
 
-  const handleDeleteSelected = () => {
+  // In-app Custom Confirmation Dialog State (avoids iframe blocking of native window.confirm)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    type: 'single' | 'multiple' | 'reset';
+    recordId?: number;
+    recordName?: string;
+    count?: number;
+  }>({
+    isOpen: false,
+    type: 'single',
+  });
+
+  const requestDeleteRecord = (id: number, name: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      type: 'single',
+      recordId: id,
+      recordName: name,
+    });
+  };
+
+  const requestDeleteSelected = () => {
     if (selectedRowIds.length === 0) return;
-    if (confirm(`តើអ្នកពិតជាចង់លុបទិន្នន័យចំនួន ${selectedRowIds.length} ជួរនេះមែនទេ?`)) {
+    setConfirmDialog({
+      isOpen: true,
+      type: 'multiple',
+      count: selectedRowIds.length,
+    });
+  };
+
+  const requestResetData = () => {
+    setConfirmDialog({
+      isOpen: true,
+      type: 'reset',
+      count: records.length,
+    });
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmDialog.type === 'single' && confirmDialog.recordId !== undefined) {
+      onDeleteRecord(confirmDialog.recordId);
+      setSelectedRowIds(prev => prev.filter(id => id !== confirmDialog.recordId));
+    } else if (confirmDialog.type === 'multiple') {
       onDeleteMultiple(selectedRowIds);
       setSelectedRowIds([]);
+    } else if (confirmDialog.type === 'reset') {
+      onResetData();
+      setSelectedRowIds([]);
     }
+    setConfirmDialog({ isOpen: false, type: 'single' });
   };
+
+  const handleCancelAction = () => {
+    setConfirmDialog({ isOpen: false, type: 'single' });
+  };
+
+  useEffect(() => {
+    if (!confirmDialog.isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setConfirmDialog({ isOpen: false, type: 'single' });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmDialog.isOpen]);
 
   // Copy for Google Sheets
   const handleCopyForSheets = async () => {
@@ -232,39 +323,60 @@ export default function SpreadsheetView({
   return (
     <div id="google-sheets-workspace" className="flex flex-col h-full bg-slate-100 select-none">
       {/* 1. Google Sheets Style Header Banner */}
-      <div className="bg-white border-b border-slate-200 px-4 py-2 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
-        <div className="flex items-center space-x-3 space-x-reverse">
-          {/* Google Sheets Green Icon */}
-          <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs shrink-0">
-            <FileSpreadsheet className="w-6 h-6" />
+      <div className="bg-white border-b border-slate-200 px-4 py-3 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-2xs">
+        <div className="flex items-center gap-3.5 sm:gap-4 shrink-0">
+          {/* Official CPP Logo with Elegant Animation & Halo */}
+          <div className="relative group shrink-0 flex items-center justify-center">
+            <div className="absolute -inset-1.5 rounded-full bg-gradient-to-tr from-amber-400/35 via-rose-500/20 to-blue-600/30 blur-md animate-logo-glow pointer-events-none"></div>
+            <div className="relative transition-transform duration-300 group-hover:scale-105">
+              <Image 
+                src="/cpp-logo.png" 
+                alt="គណបក្សប្រជាជនកម្ពុជា" 
+                width={80}
+                height={80}
+                className="w-16 h-16 sm:w-20 sm:h-20 object-contain shrink-0 filter drop-shadow-md select-none animate-logo-float transition-all duration-300 group-hover:drop-shadow-lg cursor-pointer"
+                referrerPolicy="no-referrer"
+                priority
+              />
+            </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-900 text-sm md:text-base">
-                បញ្ជីឈ្មោះសមាជិកបក្ស_ភូមិរលួស.xlsx
+
+          {/* Google Sheets Icon */}
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-sm shrink-0 hover:bg-emerald-700 transition-transform duration-200 hover:scale-105">
+            <FileSpreadsheet className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+
+          <div className="flex flex-col justify-center min-w-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="font-bold text-slate-950 text-base sm:text-lg md:text-xl tracking-tight font-kantumruy">
+                ប្រព័ន្ធគ្រប់សមាជិកគណបក្សឃុំបន្ទាយស្ទោង
+              </h1>
+              <span className="text-[11px] bg-emerald-100 text-emerald-800 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                .xlsx / Google Sheets
               </span>
-              <span className="text-[11px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-300">
-                Google Sheets Format
+              <span className="hidden xl:inline-flex items-center gap-1 text-[11px] bg-blue-50 text-blue-800 font-medium px-2.5 py-0.5 rounded-full border border-blue-200">
+                <span className="font-bold">ប្រធានក្រុមការងារ ៖</span> លោក {stats.teamLeader}
               </span>
             </div>
 
             {/* Menu Bar (Google Sheets) */}
-            <div className="flex items-center space-x-4 text-xs text-slate-600 pt-0.5 relative">
+            <div className="flex items-center space-x-4 text-xs sm:text-[13px] text-slate-600 pt-1 relative">
               <button 
                 onClick={() => setActiveMenu(activeMenu === 'file' ? null : 'file')}
-                className="hover:text-slate-900 cursor-pointer font-medium px-1 rounded hover:bg-slate-100"
+                className="hover:text-slate-900 cursor-pointer font-medium px-1.5 py-0.5 rounded hover:bg-slate-100 transition-colors"
               >
                 ឯកសារ
               </button>
               <button 
                 onClick={() => setActiveMenu(activeMenu === 'edit' ? null : 'edit')}
-                className="hover:text-slate-900 cursor-pointer font-medium px-1 rounded hover:bg-slate-100"
+                className="hover:text-slate-900 cursor-pointer font-medium px-1.5 py-0.5 rounded hover:bg-slate-100 transition-colors"
               >
                 កែសម្រួល
               </button>
               <button 
                 onClick={() => setActiveMenu(activeMenu === 'data' ? null : 'data')}
-                className="hover:text-slate-900 cursor-pointer font-medium px-1 rounded hover:bg-slate-100"
+                className="hover:text-slate-900 cursor-pointer font-medium px-1.5 py-0.5 rounded hover:bg-slate-100 transition-colors"
               >
                 ទិន្នន័យ
               </button>
@@ -289,13 +401,45 @@ export default function SpreadsheetView({
                 <BarChart3 className="w-3.5 h-3.5" />
                 <span>ផ្ទាំងស្ថិតិបក្ស (ទំព័រ១៣)</span>
               </button>
+              <button 
+                onClick={onOpenVitalReport}
+                className="hover:text-rose-800 cursor-pointer font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded flex items-center gap-1.5 transition-colors shadow-2xs"
+                title="ទម្រង់របាយការណ៍សមាជិកបក្ស និងប្រជាជនទូទៅ (សម្រាល - មរណៈ)"
+              >
+                <Baby className="w-3.5 h-3.5 text-rose-600" />
+                <span>របាយការណ៍បក្ស & ប្រជាជន (សម្រាល-មរណៈ)</span>
+              </button>
+              <button 
+                onClick={onOpenOrgStructure}
+                className="hover:text-blue-950 cursor-pointer font-bold text-blue-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-0.5 rounded flex items-center gap-1.5 transition-colors shadow-2xs"
+                title="រចនាសម្ព័ន្ធប្រធានគណបក្សឃុំបន្ទាយស្ទោង មេភូមិ អនុប្រធាន សមាជិក មានរូបថត"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-900" />
+                <span>រចនាសម្ព័ន្ធបក្ស (មានរូបថត)</span>
+              </button>
 
               {/* Dropdown Menu: File */}
               {activeMenu === 'file' && (
                 <div 
-                  className="absolute top-6 left-0 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 text-xs divide-y divide-slate-100"
+                  className="absolute top-6 left-0 w-72 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 text-xs divide-y divide-slate-100"
                   onMouseLeave={() => setActiveMenu(null)}
                 >
+                  <div className="py-1">
+                    <button
+                      onClick={() => { if (onOpenOrgStructure) onOpenOrgStructure(); setActiveMenu(null); }}
+                      className="w-full text-left px-4 py-2 hover:bg-amber-50 flex items-center gap-2 text-blue-950 font-bold"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-amber-600" />
+                      តារាងរចនាសម្ព័ន្ធបក្សឃុំ-ភូមិ (មានរូបថត)
+                    </button>
+                    <button
+                      onClick={() => { if (onOpenVitalReport) onOpenVitalReport(); setActiveMenu(null); }}
+                      className="w-full text-left px-4 py-2 hover:bg-rose-50 flex items-center gap-2 text-rose-800 font-bold"
+                    >
+                      <Baby className="w-4 h-4 text-rose-600" />
+                      ទម្រង់របាយការណ៍បក្ស & ប្រជាជន (សម្រាល-មរណៈ)
+                    </button>
+                  </div>
                   <div className="py-1">
                     <button
                       onClick={() => { exportToExcel(records, stats); setActiveMenu(null); }}
@@ -317,6 +461,13 @@ export default function SpreadsheetView({
                     </button>
                   </div>
                   <div className="py-1">
+                    <button
+                      onClick={() => { onOpenPrint(); setActiveMenu(null); }}
+                      className="w-full text-left px-4 py-2 hover:bg-rose-50 flex items-center gap-2 text-rose-700 font-medium"
+                    >
+                      <FileDown className="w-4 h-4 text-rose-600" />
+                      រក្សាទុកជា PDF (Save as PDF)
+                    </button>
                     <button
                       onClick={() => { onOpenPrint(); setActiveMenu(null); }}
                       className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700"
@@ -353,8 +504,8 @@ export default function SpreadsheetView({
                   {selectedRowIds.length > 0 && (
                     <div className="py-1">
                       <button
-                        onClick={() => { handleDeleteSelected(); setActiveMenu(null); }}
-                        className="w-full text-left px-4 py-2 hover:bg-rose-50 text-rose-600 font-semibold flex items-center gap-2"
+                        onClick={() => { requestDeleteSelected(); setActiveMenu(null); }}
+                        className="w-full text-left px-4 py-2 hover:bg-rose-50 text-rose-600 font-semibold flex items-center gap-2 cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                         លុបជួរដែលបានជ្រើស ({selectedRowIds.length})
@@ -371,8 +522,8 @@ export default function SpreadsheetView({
                   onMouseLeave={() => setActiveMenu(null)}
                 >
                   <button
-                    onClick={() => { onResetData(); setActiveMenu(null); }}
-                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
+                    onClick={() => { requestResetData(); setActiveMenu(null); }}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2 cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4 text-amber-600" />
                     កំណត់ទិន្នន័យដើមឡើងវិញ (265 នាក់)
@@ -383,8 +534,50 @@ export default function SpreadsheetView({
           </div>
         </div>
 
+        {/* Real-time Search Input Field in Header */}
+        <div className="flex-1 max-w-sm xl:max-w-md w-full">
+          <div className="relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+            <input
+              id="header-member-search-input"
+              ref={searchInputRef}
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                if (activeTab === 'ageSummary' && e.target.value.trim()) {
+                  setActiveTab('members');
+                }
+              }}
+              placeholder="ស្វែងរកតាមឈ្មោះ ឬ លេខកូដ/ID (Ctrl+K)..."
+              className="w-full pl-9 pr-24 py-1.5 bg-slate-100 hover:bg-slate-50 focus:bg-white text-slate-900 text-xs font-medium rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-hidden transition-all placeholder:text-slate-400 shadow-2xs"
+            />
+            {searchTerm ? (
+              <div className="absolute right-2 flex items-center gap-1.5">
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-200">
+                  {filteredRecords.length} នាក់
+                </span>
+                <button
+                  id="clear-header-search-btn"
+                  onClick={() => setSearchTerm('')}
+                  className="p-0.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-200 cursor-pointer transition-colors"
+                  title="សម្អាតការស្វែងរក"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="absolute right-2.5 pointer-events-none hidden sm:flex items-center">
+                <kbd className="text-[10px] text-slate-400 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-2xs font-mono">
+                  Ctrl+K
+                </kbd>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Top Right Quick Actions */}
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2 shrink-0">
           {/* Copy directly to Google Sheets */}
           <button
             onClick={handleCopyForSheets}
@@ -422,13 +615,36 @@ export default function SpreadsheetView({
             <span>សរុបស្រី-ប្រុសតាមអាយុ</span>
           </button>
 
+          {/* Org Structure with Photos */}
+          <button
+            onClick={onOpenOrgStructure}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 text-amber-300 hover:text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer border border-amber-400"
+            title="តារាងរចនាសម្ព័ន្ធប្រធានគណបក្សឃុំបន្ទាយស្ទោង មេភូមិ អនុប្រធាន សមាជិក មានរូបថត"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>រចនាសម្ព័ន្ធបក្ស (មានរូបថត)</span>
+          </button>
+
+          {/* Save as PDF */}
+          <button
+            id="header-save-pdf-btn"
+            onClick={onOpenPrint}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+            title="ទម្រង់បោះពុម្ព និង រក្សាទុកជា PDF"
+          >
+            <FileDown className="w-4 h-4" />
+            <span>រក្សាទុកជា PDF</span>
+          </button>
+
           {/* Official Print View */}
           <button
+            id="header-print-btn"
             onClick={onOpenPrint}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+            title="បោះពុម្ពរបាយការណ៍ផ្លូវការ (A4)"
           >
             <Printer className="w-4 h-4" />
-            <span>បោះពុម្ពផ្លូវការ (A4)</span>
+            <span>បោះពុម្ព (Print A4)</span>
           </button>
 
           {/* Add Member Button */}
@@ -470,8 +686,8 @@ export default function SpreadsheetView({
               បានជ្រើស {selectedRowIds.length} ជួរ
             </span>
             <button
-              onClick={handleDeleteSelected}
-              className="h-7 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+              onClick={requestDeleteSelected}
+              className="h-7 px-2.5 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-700 border border-rose-200 rounded flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors shadow-2xs"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>លុប</span>
@@ -603,6 +819,21 @@ export default function SpreadsheetView({
             </div>
           )}
 
+          {/* Active Search Term Chip */}
+          {searchTerm && (
+            <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-900 border border-emerald-300 rounded px-2 py-0.5 text-xs font-semibold">
+              <Search className="w-3 h-3 text-emerald-600" />
+              <span>ស្វែងរក ៖ &quot;{searchTerm}&quot; ({filteredRecords.length} នាក់)</span>
+              <button
+                onClick={() => setSearchTerm('')}
+                className="hover:text-red-700 ml-0.5 font-bold cursor-pointer"
+                title="សម្អាតពាក្យស្វែងរក"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Reset Filters */}
           {(selectedGroup !== 'all' || selectedGender !== 'all' || selectedRole !== 'all' || selectedRemark !== 'all' || selectedAgeBracket !== 'all' || exactAgeFilter !== null || searchTerm) && (
             <button
@@ -622,6 +853,32 @@ export default function SpreadsheetView({
           )}
         </div>
       </div>
+
+      {/* Team Leader Recognition Banner if user searches for ផូ វុធ */}
+      {(searchTerm.toLowerCase().includes('ផូ') || searchTerm.toLowerCase().includes('វុធ') || searchTerm.toLowerCase().includes('វុជ')) && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-blue-900">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+            <span>
+              <strong>លោក {stats.teamLeader || 'ផូ វុធ'}</strong> ជា <strong>ប្រធានក្រុមការងារចុះជួយភូមិរលួស</strong> (ចុះហត្ថលេខាលើទំព័រទី១៣ នៃរបាយការណ៍បក្ស ជាមួយ មេភូមិ {stats.villageHead})
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenStats}
+              className="px-2.5 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded font-medium cursor-pointer shadow-2xs"
+            >
+              មើលទំព័រស្ថិតិ & ហត្ថលេខា
+            </button>
+            <button
+              onClick={onOpenPrint}
+              className="px-2.5 py-1 bg-indigo-700 hover:bg-indigo-800 text-white rounded font-medium cursor-pointer shadow-2xs"
+            >
+              មើលទម្រង់បោះពុម្ពផ្លូវការ
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 4. Main Spreadsheet Grid or Age-Gender Summary */}
       {activeTab === 'ageSummary' ? (
@@ -752,9 +1009,9 @@ export default function SpreadsheetView({
                               ? 'ring-2 ring-emerald-600 ring-inset bg-emerald-50/40 z-10'
                               : ''
                           } ${
-                            col.key === 'id' || col.key === 'gender' || col.key === 'age' || col.key === 'partyGroup'
+                            col.key === 'id' || col.key === 'gender' || col.key === 'age' || col.key === 'partyGroup' || col.key === 'photoUrl'
                               ? 'text-center'
-                              : col.key === 'decimalAge' || col.key === 'dob' || col.key === 'officeNo'
+                              : col.key === 'dob' || col.key === 'officeNo'
                               ? 'text-center'
                               : 'text-left'
                           }`}
@@ -772,6 +1029,20 @@ export default function SpreadsheetView({
                               }}
                               className="w-full h-full p-0 border-none outline-hidden bg-white text-xs font-semibold text-slate-900"
                             />
+                          ) : col.key === 'photoUrl' ? (
+                            <div className="flex items-center justify-center py-0.5">
+                              {val ? (
+                                <img
+                                  src={String(val)}
+                                  alt="3x4"
+                                  className="w-7 h-9 object-cover rounded border border-slate-300 shadow-2xs"
+                                />
+                              ) : (
+                                <div className="w-7 h-9 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-[9px] text-slate-400 font-medium">
+                                  3x4
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span
                               className={`${
@@ -807,13 +1078,12 @@ export default function SpreadsheetView({
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`តើអ្នកពិតជាចង់លុបឈ្មោះ "${record.fullName}" មែនទេ?`)) {
-                              onDeleteRecord(record.id);
-                            }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            requestDeleteRecord(record.id, record.fullName);
                           }}
-                          className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-100 rounded cursor-pointer"
-                          title="លុប"
+                          className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-100 rounded cursor-pointer transition-colors"
+                          title="លុបទិន្នន័យ"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -863,6 +1133,23 @@ export default function SpreadsheetView({
             <BarChart3 className="w-4 h-4 text-indigo-600" />
             <span>សន្លឹក៣: ស្ថិតិបក្ស (ទំព័រ១៣)</span>
           </button>
+
+          <button
+            onClick={onOpenVitalReport}
+            className="px-4 py-1.5 rounded-t-lg font-bold flex items-center gap-1.5 transition-colors cursor-pointer border-t border-x bg-rose-50 text-rose-800 hover:bg-rose-100/90 border-rose-200"
+          >
+            <Baby className="w-4 h-4 text-rose-600" />
+            <span>សន្លឹក៤: របាយការណ៍បក្ស & ប្រជាជន (សម្រាល-មរណៈ)</span>
+          </button>
+
+          <button
+            onClick={onOpenOrgStructure}
+            className="px-4 py-1.5 rounded-t-lg font-bold flex items-center gap-1.5 transition-colors cursor-pointer border-t border-x bg-amber-100 text-blue-950 hover:bg-amber-200/90 border-amber-300 shadow-2xs"
+            title="រចនាសម្ព័ន្ធថ្នាក់ដឹកនាំគណបក្សឃុំ-ភូមិ មានរូបថត"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-600" />
+            <span>សន្លឹក៥: រចនាសម្ព័ន្ធបក្ស (មានរូបថត)</span>
+          </button>
         </div>
 
         {/* Live Calculation Metrics in Status Bar */}
@@ -881,6 +1168,85 @@ export default function SpreadsheetView({
           </span>
         </div>
       </div>
+
+      {/* Custom Confirmation Modal (No iframe-blocking window.confirm) */}
+      {confirmDialog.isOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs font-kantumruy animate-in fade-in duration-150"
+          onClick={handleCancelAction}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden transform transition-all animate-in zoom-in-95 duration-150"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Modal Header */}
+            <div className="px-5 pt-5 pb-4 flex items-start gap-4">
+              <div className="w-11 h-11 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-slate-900 leading-6">
+                  {confirmDialog.type === 'single' && 'បញ្ជាក់ការលុបទិន្នន័យសមាជិក'}
+                  {confirmDialog.type === 'multiple' && 'បញ្ជាក់ការលុបទិន្នន័យជាក្រុម'}
+                  {confirmDialog.type === 'reset' && 'បញ្ជាក់ការកំណត់ទិន្នន័យឡើងវិញ'}
+                </h3>
+                <div className="mt-2 text-xs text-slate-600 space-y-1.5 leading-relaxed">
+                  {confirmDialog.type === 'single' && (
+                    <p>
+                      តើអ្នកពិតជាចង់លុបទិន្នន័យសមាជិកឈ្មោះ{' '}
+                      <span className="font-bold text-slate-950 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                        {confirmDialog.recordName}
+                      </span>{' '}
+                      នេះចេញពីបញ្ជីមែនទេ?
+                    </p>
+                  )}
+                  {confirmDialog.type === 'multiple' && (
+                    <p>
+                      តើអ្នកពិតជាចង់លុបទិន្នន័យសមាជិកដែលបានជ្រើសរើសចំនួន{' '}
+                      <span className="font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                        {confirmDialog.count} នាក់
+                      </span>{' '}
+                      នេះមែនទេ?
+                    </p>
+                  )}
+                  {confirmDialog.type === 'reset' && (
+                    <p>
+                      តើអ្នកពិតជាចង់កំណត់ទិន្នន័យទាំងអស់ឡើងវិញដូចក្នុងឯកសារដើម (២៦៥ នាក់) មែនទេ?
+                    </p>
+                  )}
+                  <p className="text-[11px] text-rose-600 font-medium">
+                    ⚠️ សកម្មភាពនេះមិនអាចត្រឡប់វិញបានឡើយ!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="bg-slate-50 px-5 py-3.5 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={handleCancelAction}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 focus:outline-hidden transition-colors cursor-pointer"
+              >
+                បោះបង់ (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAction}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg shadow-sm flex items-center gap-1.5 focus:outline-hidden transition-colors cursor-pointer"
+                autoFocus
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>
+                  {confirmDialog.type === 'reset' ? 'កំណត់ឡើងវិញ' : 'យល់ព្រមលុប'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -19,7 +19,7 @@ export const initialVillageStats: VillageStats = {
   partyMembersFemale: 152,
   percentage: 62.21,
   villageHead: 'ជា ជី',
-  teamLeader: 'នូវ នុច',
+  teamLeader: 'ផូ វុធ',
   reportDate: '២០២៦',
 };
 

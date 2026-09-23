@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
 import { MemberRecord } from '@/lib/types';
 import { calculateAgeGenderStats, copyAgeSummaryForSheets } from '@/lib/ageCalculations';
 import { exportToExcel } from '@/lib/spreadsheetHelpers';
@@ -57,8 +58,16 @@ export default function AgeGenderSummary({
       {/* Top Banner & Control Bar */}
       <div className="bg-slate-900 text-white px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+          <div className="flex items-center gap-2.5">
+            <Image 
+              src="/cpp-logo.png" 
+              alt="CPP Logo" 
+              width={40}
+              height={40}
+              className="w-10 h-10 object-contain shrink-0 filter drop-shadow-2xs" 
+              referrerPolicy="no-referrer"
+            />
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0">
               <Users className="w-5 h-5" />
             </div>
             <div>

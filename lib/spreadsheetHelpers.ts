@@ -1,12 +1,12 @@
 import * as XLSX from 'xlsx';
-import { MemberRecord, VillageStats } from './types';
+import { MemberRecord, VillageStats, OrgLeaderRecord } from './types';
 
 // Column mappings between Khmer headers and MemberRecord keys
 export const COLUMN_DEFINITIONS = [
   { key: 'id', label: 'ល.រ', width: 8, colLetter: 'A' },
-  { key: 'fullName', label: 'នាមត្រកូល-នាមខ្លួន (មេគ្រួសារ)', width: 24, colLetter: 'B' },
-  { key: 'gender', label: 'ភេទ', width: 8, colLetter: 'C' },
-  { key: 'decimalAge', label: 'អាយុលំអៀង', width: 12, colLetter: 'D' },
+  { key: 'photoUrl', label: 'រូបថត 3*4', width: 10, colLetter: 'B' },
+  { key: 'fullName', label: 'នាមត្រកូល-នាមខ្លួន (មេគ្រួសារ)', width: 24, colLetter: 'C' },
+  { key: 'gender', label: 'ភេទ', width: 8, colLetter: 'D' },
   { key: 'age', label: 'អាយុ', width: 10, colLetter: 'E' },
   { key: 'dob', label: 'ថ្ងៃខែឆ្នាំកំណើត', width: 16, colLetter: 'F' },
   { key: 'idCardNo', label: 'លេខអត្តសញ្ញាណប័ណ្ណ', width: 20, colLetter: 'G' },
@@ -14,26 +14,25 @@ export const COLUMN_DEFINITIONS = [
   { key: 'communeCode', label: 'កូដឃុំ', width: 10, colLetter: 'I' },
   { key: 'officeNo', label: 'លេខការិ', width: 12, colLetter: 'J' },
   { key: 'necOrderNo', label: 'ល.រ គជប', width: 12, colLetter: 'K' },
-  { key: 'houseNo', label: 'លេខផ្ទះ', width: 10, colLetter: 'L' },
-  { key: 'partyGroup', label: 'ក្រុមបក្ស', width: 12, colLetter: 'M' },
-  { key: 'partyRole', label: 'តួនាទីក្នុងបក្ស', width: 18, colLetter: 'N' },
-  { key: 'occupation', label: 'មុខរបរ', width: 14, colLetter: 'O' },
-  { key: 'remarks', label: 'ផ្សេងៗ / ស្ថានភាព', width: 24, colLetter: 'P' },
+  { key: 'partyGroup', label: 'ក្រុមបក្ស', width: 12, colLetter: 'L' },
+  { key: 'partyRole', label: 'តួនាទីក្នុងបក្ស', width: 18, colLetter: 'M' },
+  { key: 'occupation', label: 'មុខរបរ', width: 14, colLetter: 'N' },
+  { key: 'remarks', label: 'ផ្សេងៗ / ស្ថានភាព', width: 24, colLetter: 'O' },
 ] as const;
 
 /**
  * Export data to Microsoft Excel (.xlsx) file that can be directly uploaded to Google Drive / opened in Google Sheets
  */
-export function exportToExcel(records: MemberRecord[], stats: VillageStats, filename = 'បញ្ជីឈ្មោះសមាជិកបក្ស_ភូមិរលួស.xlsx') {
+export function exportToExcel(records: MemberRecord[], stats: VillageStats, filename = 'ប្រព័ន្ធគ្រប់សមាជិកគណបក្សឃុំបន្ទាយស្ទោង.xlsx') {
   const wb = XLSX.utils.book_new();
 
   // 1. Members Sheet
   const headerRow = COLUMN_DEFINITIONS.map(c => c.label);
   const dataRows = records.map(r => [
     r.id,
+    r.photoUrl ? 'មានរូបថត' : 'គ្មាន',
     r.fullName,
     r.gender,
-    r.decimalAge,
     r.age,
     r.dob,
     r.idCardNo,
@@ -41,16 +40,21 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
     r.communeCode,
     r.officeNo,
     r.necOrderNo,
-    r.houseNo,
     r.partyGroup,
     r.partyRole,
     r.occupation,
     r.remarks,
   ]);
 
+  const now = new Date();
+  const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+  const khmerYear = now.getFullYear().toString().split('').map(d => khmerDigits[parseInt(d, 10)] ?? d).join('');
+  const khmerMonths = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+  const khmerMonth = khmerMonths[now.getMonth()] ?? 'កញ្ញា';
+
   const wsData = [
     ['គណបក្សប្រជាជនកម្ពុជា'],
-    ['បញ្ជីរាយនាម សមាជិកសមាជិកាសម្ព័ន្ធគ្រួសារ ក្នុងភូមិរលួស ឃុំបន្ទាយស្ទោង ស្រុកស្ទោង ខេត្តកំពង់ធំ'],
+    [`បញ្ជីរាយនាម សមាជិកសមាជិកាសម្ព័ន្ធគ្រួសារ ក្នុងភូមិរលួស ឃុំបន្ទាយស្ទោង ស្រុកស្ទោង ខេត្តកំពង់ធំ ខែ${khmerMonth} ឆ្នាំ${khmerYear}`],
     [],
     headerRow,
     ...dataRows
@@ -61,9 +65,9 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
   // Set column widths
   ws['!cols'] = [
     { wch: 8 },
+    { wch: 10 },
     { wch: 24 },
     { wch: 8 },
-    { wch: 12 },
     { wch: 10 },
     { wch: 16 },
     { wch: 20 },
@@ -71,7 +75,6 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
     { wch: 10 },
     { wch: 12 },
     { wch: 12 },
-    { wch: 10 },
     { wch: 12 },
     { wch: 18 },
     { wch: 14 },
@@ -100,6 +103,9 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
     ['នៅលីវក្នុងមូលដ្ឋាន', records.filter(r => r.remarks.includes('នៅលីវ(មូលដ្ឋាន)')).length, 'នាក់'],
     ['សំណាក់ស្រុកប្រទេសថៃ', records.filter(r => r.remarks.includes('ថៃ')).length, 'នាក់'],
     ['រៀបការផ្លាស់ទីលំនៅ', records.filter(r => r.remarks.includes('ផ្លាស់ទីលំនៅ')).length, 'នាក់'],
+    ['', '', ''],
+    ['បានឃើញ និងពិនិត្យត្រឹមត្រូវ (មេភូមិ)', stats.villageHead, ''],
+    ['ប្រធានក្រុមការងារចុះជួយភូមិរលួស', `លោក ${stats.teamLeader}`, ''],
   ];
 
   const wsStats = XLSX.utils.aoa_to_sheet(statsRows);
@@ -179,9 +185,9 @@ export function exportToCSV(records: MemberRecord[], filename = 'បញ្ជី
   const header = COLUMN_DEFINITIONS.map(c => `"${c.label}"`).join(',');
   const rows = records.map(r => [
     r.id,
+    `"${r.photoUrl ? 'មានរូបថត' : ''}"`,
     `"${r.fullName.replace(/"/g, '""')}"`,
     `"${r.gender}"`,
-    r.decimalAge,
     r.age,
     `"${r.dob}"`,
     `"${r.idCardNo}"`,
@@ -189,7 +195,6 @@ export function exportToCSV(records: MemberRecord[], filename = 'បញ្ជី
     `"${r.communeCode}"`,
     `"${r.officeNo}"`,
     `"${r.necOrderNo}"`,
-    `"${r.houseNo}"`,
     r.partyGroup,
     `"${r.partyRole}"`,
     `"${r.occupation}"`,
@@ -215,9 +220,9 @@ export async function copyForGoogleSheets(records: MemberRecord[]): Promise<bool
   const header = COLUMN_DEFINITIONS.map(c => c.label).join('\t');
   const rows = records.map(r => [
     r.id,
+    r.photoUrl ? 'មានរូបថត' : '',
     r.fullName,
     r.gender,
-    r.decimalAge,
     r.age,
     r.dob,
     r.idCardNo,
@@ -225,7 +230,6 @@ export async function copyForGoogleSheets(records: MemberRecord[]): Promise<bool
     r.communeCode,
     r.officeNo,
     r.necOrderNo,
-    r.houseNo,
     r.partyGroup,
     r.partyRole,
     r.occupation,
@@ -242,3 +246,71 @@ export async function copyForGoogleSheets(records: MemberRecord[]): Promise<bool
     return false;
   }
 }
+
+/**
+ * Export Organizational Structure Leaders to Microsoft Excel (.xlsx) file
+ */
+export function exportOrgLeadersToExcel(leaders: OrgLeaderRecord[], filename = 'រចនាសម្ព័ន្ធថ្នាក់ដឹកនាំគណបក្សឃុំបន្ទាយស្ទោង.xlsx') {
+  const wb = XLSX.utils.book_new();
+
+  const now = new Date();
+  const khmerDigits = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
+  const khmerYear = now.getFullYear().toString().split('').map(d => khmerDigits[parseInt(d, 10)] ?? d).join('');
+  const khmerMonths = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+  const khmerMonth = khmerMonths[now.getMonth()] ?? 'កញ្ញា';
+
+  const rows = [
+    ['គណបក្សប្រជាជនកម្ពុជា'],
+    ['គណៈកម្មាធិការគណបក្សមូលដ្ឋានឃុំបន្ទាយស្ទោង ស្រុកស្ទោង ខេត្តកំពង់ធំ'],
+    [`បញ្ជីរាយនាម រចនាសម្ព័ន្ធថ្នាក់ដឹកនាំគណបក្សមូលដ្ឋានឃុំ និងភូមិ (ខែ${khmerMonth} ឆ្នាំ${khmerYear})`],
+    [],
+    [
+      'ល.រ',
+      'នាម និងគោត្តនាម',
+      'ភេទ',
+      'អាយុ',
+      'កម្រិតរចនាសម្ព័ន្ធ',
+      'អង្គភាព / ភូមិ',
+      'តួនាទីក្នុងបក្ស',
+      'លេខទូរស័ព្ទ',
+      'លេខប័ណ្ណបក្ស',
+      'ភារកិច្ចទទួលបន្ទុក',
+      'ស្ថានភាព',
+      'សម្គាល់'
+    ],
+    ...leaders.map((l, index) => [
+      index + 1,
+      l.name,
+      l.gender === 'ស' ? 'ស្រី' : 'ប្រុស',
+      l.age || '',
+      l.level === 'commune' ? 'គណៈកម្មាធិការបក្សឃុំ' : l.level === 'working_group' ? 'ក្រុមការងារចុះជួយ' : 'សាខាបក្សភូមិ',
+      l.villageName || 'ឃុំបន្ទាយស្ទោង',
+      l.role,
+      l.phoneNumber || '',
+      l.partyCardNo || '',
+      l.responsibilities || '',
+      l.status === 'active' ? 'កំពុងបំពេញការងារ' : 'សម្រាក',
+      l.remarks || ''
+    ])
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 6 },
+    { wch: 22 },
+    { wch: 8 },
+    { wch: 8 },
+    { wch: 24 },
+    { wch: 18 },
+    { wch: 32 },
+    { wch: 16 },
+    { wch: 20 },
+    { wch: 35 },
+    { wch: 18 },
+    { wch: 24 }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'រចនាសម្ព័ន្ធបក្សឃុំ-ភូមិ');
+  XLSX.writeFile(wb, filename);
+}
+

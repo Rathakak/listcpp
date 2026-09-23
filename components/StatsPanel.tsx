@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { MemberRecord, VillageStats } from '@/lib/types';
 import { calculateAgeGenderStats } from '@/lib/ageCalculations';
 import { 
   Users, Home, UserCheck, Percent, 
-  MapPin, Heart, ShieldAlert, Award, Calendar
+  MapPin, Heart, ShieldAlert, Award, Calendar, Edit2, Check, X
 } from 'lucide-react';
 
 interface StatsPanelProps {
@@ -14,7 +15,23 @@ interface StatsPanelProps {
   onUpdateStats?: (newStats: VillageStats) => void;
 }
 
-export default function StatsPanel({ records, stats }: StatsPanelProps) {
+export default function StatsPanel({ records, stats, onUpdateStats }: StatsPanelProps) {
+  const [isEditingSignatures, setIsEditingSignatures] = React.useState(false);
+  const [villageHead, setVillageHead] = React.useState(stats.villageHead);
+  const [teamLeader, setTeamLeader] = React.useState(
+    stats.teamLeader === 'ផូ វុជ' ? 'ផូ វុធ' : stats.teamLeader || 'ផូ វុធ'
+  );
+
+  const handleSaveSignatures = () => {
+    if (onUpdateStats) {
+      onUpdateStats({
+        ...stats,
+        villageHead: villageHead.trim() || stats.villageHead,
+        teamLeader: teamLeader.trim() || stats.teamLeader,
+      });
+    }
+    setIsEditingSignatures(false);
+  };
   // Live computed metrics from current records
   const totalPartyMembers = records.length;
   const femalePartyMembers = records.filter(r => r.gender === 'ស').length;
@@ -35,19 +52,33 @@ export default function StatsPanel({ records, stats }: StatsPanelProps) {
     : '62.21';
 
   const ageStats = calculateAgeGenderStats(records);
+  const youthGroup = ageStats.groupStats.find(g => g.id === '18-35');
+  const midGroup = ageStats.groupStats.find(g => g.id === '36-50');
+  const olderGroup = ageStats.groupStats.find(g => g.id === '51-64');
+  const elderlyGroup = ageStats.groupStats.find(g => g.id === '65plus');
 
   return (
     <div id="statistics-summary-panel" className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-6">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-200 gap-2">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-600" />
-            <span>សង្ខេបស្ថិតិទិន្នន័យ (យោងទំព័រទី១៣ នៃឯកសារផ្លូវការ)</span>
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            ភូមិរលួស ឃុំបន្ទាយស្ទោង ស្រុកស្ទោង ខេត្តកំពង់ធំ
-          </p>
+        <div className="flex items-center gap-3">
+          <Image 
+            src="/cpp-logo.png" 
+            alt="CPP Logo" 
+            width={48}
+            height={48}
+            className="w-12 h-12 object-contain shrink-0 filter drop-shadow-2xs" 
+            referrerPolicy="no-referrer"
+          />
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Award className="w-5 h-5 text-amber-600" />
+              <span>សង្ខេបស្ថិតិទិន្នន័យ (យោងទំព័រទី១៣ នៃឯកសារផ្លូវការ)</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              ភូមិរលួស ឃុំបន្ទាយស្ទោង ស្រុកស្ទោង ខេត្តកំពង់ធំ
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 text-xs bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-full border border-emerald-200 font-semibold">
           <span>បច្ចុប្បន្នភាពទិន្នន័យ ៖ {totalPartyMembers} នាក់</span>
@@ -162,11 +193,39 @@ export default function StatsPanel({ records, stats }: StatsPanelProps) {
           <div className="divide-y divide-slate-100 text-sm">
             <div className="px-4 py-2 flex items-center justify-between hover:bg-slate-50">
               <span className="text-slate-700">យុវជន (អាយុ ១៨ - ៣៥ ឆ្នាំ)</span>
-              <span className="font-semibold text-slate-900">{youthCount || stats.youthCount} នាក់</span>
+              <div className="text-right">
+                <span className="font-semibold text-slate-900">{youthGroup?.totalCount || stats.youthCount} នាក់</span>
+                <span className="text-[11px] text-slate-500 block">
+                  (ស្រី <strong className="text-rose-700">{youthGroup?.femaleCount || 0}</strong> | ប្រុស <strong className="text-blue-700">{youthGroup?.maleCount || 0}</strong>)
+                </span>
+              </div>
+            </div>
+            <div className="px-4 py-2 flex items-center justify-between hover:bg-slate-50">
+              <span className="text-slate-700">វ័យកណ្តាល (អាយុ ៣៦ - ៥០ ឆ្នាំ)</span>
+              <div className="text-right">
+                <span className="font-semibold text-slate-900">{midGroup?.totalCount || 0} នាក់</span>
+                <span className="text-[11px] text-slate-500 block">
+                  (ស្រី <strong className="text-rose-700">{midGroup?.femaleCount || 0}</strong> | ប្រុស <strong className="text-blue-700">{midGroup?.maleCount || 0}</strong>)
+                </span>
+              </div>
+            </div>
+            <div className="px-4 py-2 flex items-center justify-between hover:bg-slate-50">
+              <span className="text-slate-700">វ័យចំណាស់ (អាយុ ៥១ - ៦៤ ឆ្នាំ)</span>
+              <div className="text-right">
+                <span className="font-semibold text-slate-900">{olderGroup?.totalCount || 0} នាក់</span>
+                <span className="text-[11px] text-slate-500 block">
+                  (ស្រី <strong className="text-rose-700">{olderGroup?.femaleCount || 0}</strong> | ប្រុស <strong className="text-blue-700">{olderGroup?.maleCount || 0}</strong>)
+                </span>
+              </div>
             </div>
             <div className="px-4 py-2 flex items-center justify-between hover:bg-slate-50">
               <span className="text-slate-700">ចាស់ជរា (អាយុ ៦៥ ឆ្នាំឡើង)</span>
-              <span className="font-semibold text-slate-900">{elderly || stats.elderlyOver65} នាក់</span>
+              <div className="text-right">
+                <span className="font-semibold text-slate-900">{elderlyGroup?.totalCount || stats.elderlyOver65} នាក់</span>
+                <span className="text-[11px] text-slate-500 block">
+                  (ស្រី <strong className="text-rose-700">{elderlyGroup?.femaleCount || 0}</strong> | ប្រុស <strong className="text-blue-700">{elderlyGroup?.maleCount || 0}</strong>)
+                </span>
+              </div>
             </div>
             <div className="px-4 py-2 flex items-center justify-between hover:bg-slate-50">
               <span className="text-slate-700">បញ្ជីឈ្មោះបោះឆ្នោតឆ្នាំ២០២៥ (គ.ជ.ប)</span>
@@ -330,19 +389,84 @@ export default function StatsPanel({ records, stats }: StatsPanelProps) {
       </div>
 
       {/* Official Signatures Reference Box */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-600 gap-4">
-        <div className="text-center sm:text-left">
-          <span className="font-semibold text-slate-800">បានឃើញ និងពិនិត្យត្រឹមត្រូវ ៖</span>
-          <p className="mt-1 font-bold text-slate-900">មេភូមិ {stats.villageHead}</p>
-        </div>
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <ShieldAlert className="w-4 h-4 text-emerald-600" />
-          <span>ទិន្នន័យត្រូវបានផ្ទៀងផ្ទាត់ស្របតាមរបាយការណ៍បក្សឆ្នាំ២០២៦</span>
-        </div>
-        <div className="text-center sm:text-right">
-          <span className="font-semibold text-slate-800">ប្រធានក្រុមការងារចុះជួយភូមិរលួស ៖</span>
-          <p className="mt-1 font-bold text-slate-900">លោក {stats.teamLeader}</p>
-        </div>
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-600">
+        {isEditingSignatures ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <span className="font-bold text-slate-900">កែប្រែឈ្មោះថ្នាក់ដឹកនាំ និងអ្នកចុះហត្ថលេខា ៖</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveSignatures}
+                  className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>រក្សាទុក</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setVillageHead(stats.villageHead);
+                    setTeamLeader(stats.teamLeader);
+                    setIsEditingSignatures(false);
+                  }}
+                  className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>បោះបង់</span>
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">ឈ្មោះមេភូមិ ៖</label>
+                <input
+                  type="text"
+                  value={villageHead}
+                  onChange={(e) => setVillageHead(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-semibold focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                  placeholder="ជា ជី"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">ប្រធានក្រុមការងារចុះជួយភូមិរលួស ៖</label>
+                <input
+                  type="text"
+                  value={teamLeader}
+                  onChange={(e) => setTeamLeader(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900 font-semibold focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                  placeholder="ផូ វុធ"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <span className="font-semibold text-slate-700">បានឃើញ និងពិនិត្យត្រឹមត្រូវ ៖</span>
+              <p className="mt-1 font-bold text-slate-900 text-sm">មេភូមិ {stats.villageHead}</p>
+            </div>
+            <div className="flex flex-col items-center gap-1 text-slate-500 text-center">
+              <div className="flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-emerald-600" />
+                <span>ទិន្នន័យត្រូវបានផ្ទៀងផ្ទាត់ស្របតាមរបាយការណ៍បក្សឆ្នាំ២០២៦</span>
+              </div>
+              {onUpdateStats && (
+                <button
+                  onClick={() => setIsEditingSignatures(true)}
+                  className="text-emerald-700 hover:text-emerald-800 font-semibold underline flex items-center gap-1 cursor-pointer text-[11px] mt-0.5"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  <span>កែប្រែឈ្មោះអ្នកចុះហត្ថលេខា</span>
+                </button>
+              )}
+            </div>
+            <div className="text-center sm:text-right">
+              <span className="font-semibold text-slate-700">ប្រធានក្រុមការងារចុះជួយភូមិរលួស ៖</span>
+              <p className="mt-1 font-bold text-slate-900 text-sm">
+                លោក {stats.teamLeader === 'ផូ វុជ' ? 'ផូ វុធ' : stats.teamLeader || 'ផូ វុធ'}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
