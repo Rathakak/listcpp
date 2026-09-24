@@ -10,6 +10,7 @@ import {
   DEFAULT_AVATARS, 
   BANTEAY_STOUNG_VILLAGES 
 } from '@/lib/orgInitialData';
+import TacteingDivider from './TacteingDivider';
 import { exportOrgLeadersToExcel } from '@/lib/spreadsheetHelpers';
 import { 
   Users, UserCheck, ArrowLeft, Printer, Download, Plus, 
@@ -1144,11 +1145,11 @@ export default function OrgStructureView({
                 </div>
               </div>
 
-              {/* Right: Royal Motto */}
+              {/* Right: Party Motto */}
               <div className="text-center">
-                <h3 className="font-moul text-xs text-slate-900">ព្រះរាជាណាចក្រកម្ពុជា</h3>
-                <h4 className="font-moul text-[11px] text-slate-900">ជាតិ សាសនា ព្រះមហាក្សត្រ</h4>
-                <div className="w-16 h-0.5 bg-amber-500 mx-auto mt-1"></div>
+                <h3 className="font-moul text-xs text-slate-900 leading-tight">ឯករាជ្យ សន្តិភាព សេរីភាព ប្រជាធិបតេយ្យ</h3>
+                <h4 className="font-moul text-[11px] text-slate-900 leading-tight mt-0.5">អព្យាក្រឹត្យ និងវឌ្ឍនភាពសង្គម</h4>
+                <TacteingDivider className="w-24 sm:w-28 h-2 text-slate-900 mx-auto mt-1" />
               </div>
             </div>
 
@@ -1221,20 +1222,20 @@ export default function OrgStructureView({
 
             {/* Official Signatures Section */}
             <div className="mt-8 pt-4 grid grid-cols-3 gap-4 text-center text-xs">
-              {/* Village Chief */}
-              <div>
-                <p className="font-moul text-[11px] text-slate-900">ប្រធានសាខាបក្សភូមិរលួស</p>
-                <p className="font-semibold text-slate-700 text-[10px]">មេភូមិ</p>
-                <div className="h-16"></div>
-                <p className="font-moul text-xs text-blue-950">លោក ជា ជី</p>
-              </div>
-
               {/* Working Group Leader */}
               <div>
                 <p className="font-moul text-[11px] text-slate-900">ប្រធានក្រុមការងារចុះជួយភូមិ</p>
                 <p className="font-semibold text-slate-700 text-[10px]">ក្រុមការងារគណបក្ស</p>
                 <div className="h-16"></div>
                 <p className="font-moul text-xs text-blue-950">លោក ផូ វុធ</p>
+              </div>
+
+              {/* Village Chief */}
+              <div>
+                <p className="font-moul text-[11px] text-slate-900">ប្រធានសាខាបក្សភូមិរលួស</p>
+                <p className="font-semibold text-slate-700 text-[10px]">មេភូមិ</p>
+                <div className="h-16"></div>
+                <p className="font-moul text-xs text-blue-950">លោក ជា ជី</p>
               </div>
 
               {/* Commune Party President / Chief */}

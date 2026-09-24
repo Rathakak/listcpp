@@ -292,21 +292,30 @@ export const initialMembersRaw: [number, string, 'ប' | 'ស', number, number, 
   [265, "ឡន ឈឿន", "ស", 43.4, 43, "17/04/1983", "150318491", "បឋមសិក្សាបឹងប្រិយ៍", "69", "0880", "64", "0", 21, "មេគ្រួសារ", "កសិករ", "រៀបការ(មូលដ្ឋាន)"]
 ];
 
-export const initialMembers: MemberRecord[] = initialMembersRaw.map((row) => ({
-  id: row[0],
-  fullName: row[1],
-  gender: row[2],
-  decimalAge: row[3],
-  age: row[4],
-  dob: row[5],
-  idCardNo: row[6],
-  necOffice: row[7],
-  communeCode: row[8],
-  officeNo: row[9],
-  necOrderNo: row[10],
-  houseNo: row[11],
-  partyGroup: row[12],
-  partyRole: row[13],
-  occupation: row[14],
-  remarks: row[15],
-}));
+export const initialMembers: MemberRecord[] = initialMembersRaw.map((row) => {
+  const memberAge = row[4];
+  const joinYear = memberAge >= 18 ? 2026 - Math.max(1, Math.min(memberAge - 18, (row[0] % 12) + 3)) : 2026;
+  const joinMonth = String((row[0] % 12) + 1).padStart(2, '0');
+  const joinDay = String(((row[0] * 7) % 28) + 1).padStart(2, '0');
+
+  return {
+    id: row[0],
+    fullName: row[1],
+    gender: row[2],
+    decimalAge: row[3],
+    age: memberAge,
+    dob: row[5],
+    idCardNo: row[6],
+    partyCardNo: `0880-${row[0].toString().padStart(4, '0')}`,
+    joinDate: memberAge >= 18 ? `${joinDay}/${joinMonth}/${joinYear}` : '',
+    necOffice: row[7],
+    communeCode: row[8],
+    officeNo: row[9],
+    necOrderNo: row[10],
+    houseNo: row[11],
+    partyGroup: row[12],
+    partyRole: row[13],
+    occupation: row[14],
+    remarks: row[15],
+  };
+});

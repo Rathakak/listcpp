@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { MemberRecord, VillageStats, VitalEventRecord, GeneralPopulationStats } from '@/lib/types';
+import TacteingDivider from './TacteingDivider';
 import { KHMER_MONTHS } from './OfficialPrintView';
 import { 
   ArrowLeft, 
@@ -192,7 +193,11 @@ export default function DemographicVitalReport({
   const handlePrint = () => {
     const originalTitle = document.title;
     document.title = `របាយការណ៍សមាជិកបក្ស_និងប្រជាជនទូទៅ_សម្រាល_មរណៈ_ភូមិរលួស_${activeMonthName}_${activeYearKhmer}`;
-    window.print();
+    try {
+      window.print();
+    } catch (e) {
+      console.warn('Print error:', e);
+    }
     setTimeout(() => {
       document.title = originalTitle;
     }, 2000);
@@ -527,11 +532,15 @@ export default function DemographicVitalReport({
                 />
               </div>
 
-              {/* Right Header: Kingdom Motto */}
-              <div className="text-center w-64 space-y-0.5">
-                <p className="font-moul text-xs sm:text-[13px] text-slate-950">ព្រះរាជាណាចក្រកម្ពុជា</p>
-                <p className="font-moul text-xs text-slate-950">ជាតិ សាសនា ព្រះមហាក្សត្រ</p>
-                <p className="text-xs tracking-widest text-slate-700 font-bold">--- 𖧹 ---</p>
+              {/* Right Header: Party Motto */}
+              <div className="text-center w-72 space-y-0.5">
+                <p className="font-moul text-xs sm:text-[12.5px] print:text-[11px] text-slate-950 leading-tight whitespace-nowrap">
+                  ឯករាជ្យ សន្តិភាព សេរីភាព ប្រជាធិបតេយ្យ
+                </p>
+                <p className="font-moul text-[11px] sm:text-xs print:text-[10px] text-slate-950 leading-tight whitespace-nowrap">
+                  អព្យាក្រឹត្យ និងវឌ្ឍនភាពសង្គម
+                </p>
+                <TacteingDivider className="w-24 sm:w-28 h-2 text-slate-900 mx-auto mt-1" />
               </div>
             </div>
 
@@ -910,16 +919,6 @@ export default function DemographicVitalReport({
           {/* SECTION 4: Official Signatures Block */}
           <div className="pt-6 border-t-2 border-slate-900 break-inside-avoid">
             <div className="flex items-start justify-between text-center pt-2">
-              <div className="space-y-1 w-64">
-                <p className="font-semibold text-slate-800 text-xs sm:text-sm">បានឃើញ និងពិនិត្យត្រឹមត្រូវ</p>
-                <p className="text-xs text-slate-600">
-                  {fillSignatureDay ? `ថ្ងៃទី ${activeDayKhmer} ` : 'ថ្ងៃទី........... '}
-                  ខែ{activeMonthName} ឆ្នាំ{activeYearKhmer}
-                </p>
-                <p className="text-xs font-bold text-slate-700 pt-1">មេភូមិរលួស</p>
-                <p className="font-moul text-xs sm:text-sm pt-14 text-slate-950">លោក {stats.villageHead || 'ជា ជី'}</p>
-              </div>
-
               <div className="space-y-1 w-72">
                 <p className="font-semibold text-slate-800 text-xs sm:text-sm">ប្រធានក្រុមការងារចុះជួយភូមិរលួស</p>
                 <p className="text-xs text-slate-600">
@@ -928,6 +927,16 @@ export default function DemographicVitalReport({
                 </p>
                 <p className="text-xs font-bold text-slate-700 pt-1">ហត្ថលេខា និងឈ្មោះ</p>
                 <p className="font-moul text-xs sm:text-sm pt-14 text-slate-950">លោក {stats.teamLeader || 'ផូ វុធ'}</p>
+              </div>
+
+              <div className="space-y-1 w-64">
+                <p className="font-semibold text-slate-800 text-xs sm:text-sm">បានឃើញ និងពិនិត្យត្រឹមត្រូវ</p>
+                <p className="text-xs text-slate-600">
+                  {fillSignatureDay ? `ថ្ងៃទី ${activeDayKhmer} ` : 'ថ្ងៃទី........... '}
+                  ខែ{activeMonthName} ឆ្នាំ{activeYearKhmer}
+                </p>
+                <p className="text-xs font-bold text-slate-700 pt-1">ប្រធានសាខាគណបក្សភូមិរលួស</p>
+                <p className="font-moul text-xs sm:text-sm pt-14 text-slate-950">លោក {stats.villageHead || 'ជា ជី'}</p>
               </div>
             </div>
           </div>

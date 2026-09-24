@@ -1,11 +1,18 @@
 import type {Metadata} from 'next';
-import { Kantumruy_Pro, Moul } from 'next/font/google';
+import { Noto_Sans_Khmer, Battambang, Moul } from 'next/font/google';
 import './globals.css';
 
-const kantumruy = Kantumruy_Pro({
-  subsets: ['khmer', 'latin'],
-  variable: '--font-kantumruy',
-  weight: ['300', '400', '500', '600', '700'],
+const notoSansKhmer = Noto_Sans_Khmer({
+  subsets: ['khmer'],
+  variable: '--font-noto-sans-khmer',
+  weight: ['300', '400', '500', '600', '700', '800'],
+  display: 'swap',
+});
+
+const battambang = Battambang({
+  subsets: ['khmer'],
+  variable: '--font-battambang',
+  weight: ['400', '700'],
   display: 'swap',
 });
 
@@ -36,7 +43,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="km" className={`${kantumruy.variable} ${moul.variable}`}>
+    <html lang="km" className={`${battambang.variable} ${notoSansKhmer.variable} ${moul.variable}`}>
       <body suppressHydrationWarning className="font-sans antialiased text-slate-900 bg-slate-100 min-h-screen">
         {children}
       </body>

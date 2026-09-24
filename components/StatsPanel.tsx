@@ -417,7 +417,7 @@ export default function StatsPanel({ records, stats, onUpdateStats }: StatsPanel
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">ឈ្មោះមេភូមិ ៖</label>
+                <label className="block text-slate-700 font-semibold mb-1">ប្រធានសាខាគណបក្សភូមិ ៖</label>
                 <input
                   type="text"
                   value={villageHead}
@@ -442,7 +442,7 @@ export default function StatsPanel({ records, stats, onUpdateStats }: StatsPanel
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-center sm:text-left">
               <span className="font-semibold text-slate-700">បានឃើញ និងពិនិត្យត្រឹមត្រូវ ៖</span>
-              <p className="mt-1 font-bold text-slate-900 text-sm">មេភូមិ {stats.villageHead}</p>
+              <p className="mt-1 font-bold text-slate-900 text-sm">ប្រធានសាខាគណបក្សភូមិ {stats.villageHead}</p>
             </div>
             <div className="flex flex-col items-center gap-1 text-slate-500 text-center">
               <div className="flex items-center gap-1.5">

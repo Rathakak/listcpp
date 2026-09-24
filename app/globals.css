@@ -15,7 +15,7 @@
 
 @layer base {
   body {
-    font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-battambang), var(--font-noto-sans-khmer), 'Battambang', 'Noto Sans Khmer', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 }
 
@@ -23,8 +23,16 @@
   font-family: var(--font-moul), 'Moul', cursive, serif;
 }
 
+.font-battambang {
+  font-family: var(--font-battambang), 'Battambang', sans-serif;
+}
+
+.font-noto {
+  font-family: var(--font-noto-sans-khmer), 'Noto Sans Khmer', sans-serif;
+}
+
 .font-kantumruy {
-  font-family: var(--font-kantumruy), 'Kantumruy Pro', sans-serif;
+  font-family: var(--font-battambang), var(--font-noto-sans-khmer), 'Battambang', 'Noto Sans Khmer', sans-serif;
 }
 
 @media print {

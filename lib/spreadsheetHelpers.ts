@@ -4,20 +4,23 @@ import { MemberRecord, VillageStats, OrgLeaderRecord } from './types';
 // Column mappings between Khmer headers and MemberRecord keys
 export const COLUMN_DEFINITIONS = [
   { key: 'id', label: 'ល.រ', width: 8, colLetter: 'A' },
-  { key: 'photoUrl', label: 'រូបថត 3*4', width: 10, colLetter: 'B' },
-  { key: 'fullName', label: 'នាមត្រកូល-នាមខ្លួន (មេគ្រួសារ)', width: 24, colLetter: 'C' },
+  { key: 'photoUrl', label: 'រូបថត', width: 10, colLetter: 'B' },
+  { key: 'fullName', label: 'នាមត្រកូល-នាមខ្លួន', width: 22, colLetter: 'C' },
   { key: 'gender', label: 'ភេទ', width: 8, colLetter: 'D' },
-  { key: 'age', label: 'អាយុ', width: 10, colLetter: 'E' },
+  { key: 'age', label: 'អាយុ', width: 8, colLetter: 'E' },
   { key: 'dob', label: 'ថ្ងៃខែឆ្នាំកំណើត', width: 16, colLetter: 'F' },
   { key: 'idCardNo', label: 'លេខអត្តសញ្ញាណប័ណ្ណ', width: 20, colLetter: 'G' },
-  { key: 'necOffice', label: 'បញ្ជី គជប - ឈ្មោះការិយាល័យ', width: 24, colLetter: 'H' },
-  { key: 'communeCode', label: 'កូដឃុំ', width: 10, colLetter: 'I' },
-  { key: 'officeNo', label: 'លេខការិ', width: 12, colLetter: 'J' },
-  { key: 'necOrderNo', label: 'ល.រ គជប', width: 12, colLetter: 'K' },
-  { key: 'partyGroup', label: 'ក្រុមបក្ស', width: 12, colLetter: 'L' },
-  { key: 'partyRole', label: 'តួនាទីក្នុងបក្ស', width: 18, colLetter: 'M' },
-  { key: 'occupation', label: 'មុខរបរ', width: 14, colLetter: 'N' },
-  { key: 'remarks', label: 'ផ្សេងៗ / ស្ថានភាព', width: 24, colLetter: 'O' },
+  { key: 'partyCardNo', label: 'លេខអត្តបក្ស', width: 18, colLetter: 'H' },
+  { key: 'joinDate', label: 'ថ្ងៃខែឆ្នាំចូលបក្ស', width: 16, colLetter: 'I' },
+  { key: 'necOffice', label: 'ឈ្មោះការិ', width: 20, colLetter: 'J' },
+  { key: 'communeCode', label: 'កូដឃុំ', width: 10, colLetter: 'K' },
+  { key: 'officeNo', label: 'លេខការិ', width: 12, colLetter: 'L' },
+  { key: 'necOrderNo', label: 'ល.រ គជប', width: 12, colLetter: 'M' },
+  { key: 'partyGroup', label: 'ក្រុមបក្ស', width: 12, colLetter: 'N' },
+  { key: 'partyRole', label: 'តួនាទីក្នុងបក្ស', width: 18, colLetter: 'O' },
+  { key: 'occupation', label: 'មុខរបរ', width: 14, colLetter: 'P' },
+  { key: 'remarks', label: 'ស្ថានគ្រួសារ', width: 22, colLetter: 'Q' },
+  { key: 'notes', label: 'កត់សម្គាល់', width: 20, colLetter: 'R' },
 ] as const;
 
 /**
@@ -36,6 +39,8 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
     r.age,
     r.dob,
     r.idCardNo,
+    r.partyCardNo || '',
+    r.joinDate || '',
     r.necOffice,
     r.communeCode,
     r.officeNo,
@@ -44,6 +49,7 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
     r.partyRole,
     r.occupation,
     r.remarks,
+    r.notes || '',
   ]);
 
   const now = new Date();
@@ -66,19 +72,21 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
   ws['!cols'] = [
     { wch: 8 },
     { wch: 10 },
-    { wch: 24 },
+    { wch: 22 },
     { wch: 8 },
-    { wch: 10 },
+    { wch: 8 },
     { wch: 16 },
     { wch: 20 },
-    { wch: 24 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 22 },
     { wch: 10 },
     { wch: 12 },
     { wch: 12 },
     { wch: 12 },
     { wch: 18 },
     { wch: 14 },
-    { wch: 26 },
+    { wch: 24 },
   ];
 
   XLSX.utils.book_append_sheet(wb, ws, 'បញ្ជីឈ្មោះសមាជិក');
@@ -104,7 +112,7 @@ export function exportToExcel(records: MemberRecord[], stats: VillageStats, file
     ['សំណាក់ស្រុកប្រទេសថៃ', records.filter(r => r.remarks.includes('ថៃ')).length, 'នាក់'],
     ['រៀបការផ្លាស់ទីលំនៅ', records.filter(r => r.remarks.includes('ផ្លាស់ទីលំនៅ')).length, 'នាក់'],
     ['', '', ''],
-    ['បានឃើញ និងពិនិត្យត្រឹមត្រូវ (មេភូមិ)', stats.villageHead, ''],
+    ['បានឃើញ និងពិនិត្យត្រឹមត្រូវ (ប្រធានសាខាគណបក្សភូមិ)', stats.villageHead, ''],
     ['ប្រធានក្រុមការងារចុះជួយភូមិរលួស', `លោក ${stats.teamLeader}`, ''],
   ];
 
@@ -191,6 +199,8 @@ export function exportToCSV(records: MemberRecord[], filename = 'បញ្ជី
     r.age,
     `"${r.dob}"`,
     `"${r.idCardNo}"`,
+    `"${(r.partyCardNo || '').replace(/"/g, '""')}"`,
+    `"${(r.joinDate || '').replace(/"/g, '""')}"`,
     `"${r.necOffice}"`,
     `"${r.communeCode}"`,
     `"${r.officeNo}"`,
@@ -226,6 +236,8 @@ export async function copyForGoogleSheets(records: MemberRecord[]): Promise<bool
     r.age,
     r.dob,
     r.idCardNo,
+    r.partyCardNo || '',
+    r.joinDate || '',
     r.necOffice,
     r.communeCode,
     r.officeNo,

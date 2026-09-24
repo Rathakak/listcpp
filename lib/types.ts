@@ -1,12 +1,14 @@
 export interface MemberRecord {
   id: number; // ល.រ
-  fullName: string; // នាមត្រកូល-នាមខ្លួន (មេគ្រួសារ)
+  fullName: string; // នាមត្រកូល-នាមខ្លួន
   gender: 'ប' | 'ស'; // ភេទ (ប / ស)
-  photoUrl?: string; // រូបថត 3*4 (PNG, JPG, ...)
+  photoUrl?: string; // រូបថត
   decimalAge?: number; // អាយុលំអៀង (Legacy/Optional)
   age: number; // អាយុ
   dob: string; // ថ្ងៃខែឆ្នាំកំណើត
   idCardNo: string; // លេខអត្តសញ្ញាណប័ណ្ណ
+  partyCardNo?: string; // លេខអត្តបក្ស
+  joinDate?: string; // ថ្ងៃខែឆ្នាំចូលបក្ស
   necOffice: string; // ឈ្មោះការិយាល័យ គជប
   communeCode: string; // កូដឃុំ
   officeNo: string; // លេខការិយាល័យ
@@ -15,7 +17,8 @@ export interface MemberRecord {
   partyGroup: number; // ក្រុមបក្ស (1 - 21)
   partyRole: string; // តួនាទីក្នុងបក្ស
   occupation: string; // មុខរបរ
-  remarks: string; // ផ្សេងៗ / ស្ថានភាព
+  remarks: string; // ស្ថានគ្រួសារ
+  notes?: string; // កត់សម្គាល់ / ផ្សេងៗ
 }
 
 export interface VillageStats {

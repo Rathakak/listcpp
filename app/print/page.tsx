@@ -1,16 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { MemberRecord, VillageStats } from '@/lib/types';
 import { initialMembers, initialVillageStats } from '@/lib/initialData';
 import OfficialPrintView from '@/components/OfficialPrintView';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const STORAGE_KEY_MEMBERS = 'party_members_list_v1';
 const STORAGE_KEY_STATS = 'party_village_stats_v1';
 
-export default function PrintPage() {
+function PrintContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const groupParam = searchParams.get('group');
+  const autoPrintParam = searchParams.get('autoprint');
+  const autoPrint = autoPrintParam === '1' || autoPrintParam === 'true';
+  const initialGroup: 'all' | number = groupParam ? (groupParam === 'all' ? 'all' : parseInt(groupParam, 10)) : 'all';
 
   const [records] = useState<MemberRecord[]>(() => {
     if (typeof window !== 'undefined') {
@@ -67,8 +72,26 @@ export default function PrintPage() {
     <OfficialPrintView
       records={records}
       stats={stats}
+      initialGroup={initialGroup}
+      autoPrint={autoPrint}
       onBack={() => router.push('/')}
     />
   );
 }
 
+export default function PrintPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-700 font-kantumruy">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm">កំពុងផ្ទុកឯកសារផ្លូវការ...</p>
+          </div>
+        </div>
+      }
+    >
+      <PrintContent />
+    </Suspense>
+  );
+}

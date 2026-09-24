@@ -137,6 +137,8 @@ export default function HomePage() {
 
   // View state: 'spreadsheet' | 'print' | 'vitalReport' | 'orgStructure'
   const [currentView, setCurrentView] = useState<'spreadsheet' | 'print' | 'vitalReport' | 'orgStructure'>('spreadsheet');
+  const [selectedPrintGroup, setSelectedPrintGroup] = useState<'all' | number>('all');
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
 
   // Modals state
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -281,7 +283,12 @@ export default function HomePage() {
       <OfficialPrintView
         records={records}
         stats={stats}
-        onBack={() => setCurrentView('spreadsheet')}
+        initialGroup={selectedPrintGroup}
+        autoPrint={autoPrintEnabled}
+        onBack={() => {
+          setAutoPrintEnabled(false);
+          setCurrentView('spreadsheet');
+        }}
       />
     );
   }
@@ -297,11 +304,19 @@ export default function HomePage() {
           setEditingMember(null);
           setIsMemberModalOpen(true);
         }}
+        onEditRecord={(record) => {
+          setEditingMember(record);
+          setIsMemberModalOpen(true);
+        }}
         onDeleteRecord={handleDeleteRecord}
         onDeleteMultiple={handleDeleteMultiple}
         onResetData={handleResetData}
         onOpenStats={() => setIsStatsModalOpen(true)}
-        onOpenPrint={() => setCurrentView('print')}
+        onOpenPrint={(grp, autoPrint = false) => {
+          setSelectedPrintGroup(grp ?? 'all');
+          setAutoPrintEnabled(autoPrint);
+          setCurrentView('print');
+        }}
         onOpenAgeSummary={() => setIsAgeModalOpen(true)}
         onOpenVitalReport={() => setCurrentView('vitalReport')}
         onOpenOrgStructure={() => setCurrentView('orgStructure')}

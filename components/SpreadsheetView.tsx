@@ -9,7 +9,7 @@ import {
   FileSpreadsheet, Download, Copy, Printer, FileDown, Plus, Trash2, 
   Search, Filter, Check, Edit2, RotateCcw,
   BarChart3, ChevronDown, CheckSquare, Square, Users, Calendar, X,
-  AlertTriangle, Baby, ShieldCheck, Building2
+  AlertTriangle, Baby, ShieldCheck, Building2, Eye
 } from 'lucide-react';
 
 interface SpreadsheetViewProps {
@@ -17,11 +17,12 @@ interface SpreadsheetViewProps {
   stats: VillageStats;
   onUpdateRecord: (updated: MemberRecord) => void;
   onAddRecord: () => void;
+  onEditRecord?: (record: MemberRecord) => void;
   onDeleteRecord: (id: number) => void;
   onDeleteMultiple: (ids: number[]) => void;
   onResetData: () => void;
   onOpenStats: () => void;
-  onOpenPrint: () => void;
+  onOpenPrint: (group?: number | 'all', autoPrint?: boolean) => void;
   onOpenAgeSummary?: () => void;
   onOpenVitalReport?: () => void;
   onOpenOrgStructure?: () => void;
@@ -32,6 +33,7 @@ export default function SpreadsheetView({
   stats,
   onUpdateRecord,
   onAddRecord,
+  onEditRecord,
   onDeleteRecord,
   onDeleteMultiple,
   onResetData,
@@ -109,8 +111,10 @@ export default function SpreadsheetView({
         const matchesRole = r.partyRole.toLowerCase().includes(rawQuery);
         const matchesRemark = r.remarks.toLowerCase().includes(rawQuery);
         const matchesOcc = r.occupation.toLowerCase().includes(rawQuery);
+        const matchesPartyCard = Boolean(r.partyCardNo && (r.partyCardNo.toLowerCase().includes(rawQuery) || r.partyCardNo.toLowerCase().includes(normQuery)));
+        const matchesJoinDate = Boolean(r.joinDate && (r.joinDate.toLowerCase().includes(rawQuery) || r.joinDate.toLowerCase().includes(normQuery)));
 
-        if (!matchesName && !matchesIdCard && !matchesRowId && !matchesNec && !matchesCommune && !matchesOffice && !matchesRole && !matchesRemark && !matchesOcc) {
+        if (!matchesName && !matchesIdCard && !matchesRowId && !matchesNec && !matchesCommune && !matchesOffice && !matchesRole && !matchesRemark && !matchesOcc && !matchesPartyCard && !matchesJoinDate) {
           return false;
         }
       }
@@ -426,6 +430,16 @@ export default function SpreadsheetView({
                 >
                   <div className="py-1">
                     <button
+                      onClick={() => {
+                        onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all');
+                        setActiveMenu(null);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-sky-50 flex items-center gap-2 text-sky-950 font-bold"
+                    >
+                      <Eye className="w-4 h-4 text-sky-600" />
+                      មើលគំរូតារាងបោះពុម្ព (Print Preview A4)
+                    </button>
+                    <button
                       onClick={() => { if (onOpenOrgStructure) onOpenOrgStructure(); setActiveMenu(null); }}
                       className="w-full text-left px-4 py-2 hover:bg-amber-50 flex items-center gap-2 text-blue-950 font-bold"
                     >
@@ -462,18 +476,24 @@ export default function SpreadsheetView({
                   </div>
                   <div className="py-1">
                     <button
-                      onClick={() => { onOpenPrint(); setActiveMenu(null); }}
+                      onClick={() => { 
+                        onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all'); 
+                        setActiveMenu(null); 
+                      }}
                       className="w-full text-left px-4 py-2 hover:bg-rose-50 flex items-center gap-2 text-rose-700 font-medium"
                     >
                       <FileDown className="w-4 h-4 text-rose-600" />
-                      រក្សាទុកជា PDF (Save as PDF)
+                      {selectedGroup !== 'all' ? `រក្សាទុកជា PDF (ក្រុមទី ${selectedGroup})` : 'រក្សាទុកជា PDF (Save as PDF)'}
                     </button>
                     <button
-                      onClick={() => { onOpenPrint(); setActiveMenu(null); }}
+                      onClick={() => { 
+                        onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all', true); 
+                        setActiveMenu(null); 
+                      }}
                       className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700"
                     >
                       <Printer className="w-4 h-4 text-slate-600" />
-                      បោះពុម្ពរបាយការណ៍ផ្លូវការ (Print A4)
+                      {selectedGroup !== 'all' ? `បោះពុម្ពរបាយការណ៍ (ក្រុមទី ${selectedGroup})` : 'បោះពុម្ពរបាយការណ៍ផ្លូវការ (Print A4)'}
                     </button>
                   </div>
                 </div>
@@ -594,11 +614,22 @@ export default function SpreadsheetView({
 
           {/* Export Excel (.xlsx) */}
           <button
-            onClick={() => exportToExcel(records, stats)}
+            onClick={() => {
+              if (selectedGroup !== 'all') {
+                exportToExcel(
+                  filteredRecords,
+                  stats,
+                  `បញ្ជីរាយនាមសមាជិកបក្ស_ក្រុមទី${selectedGroup}_ភូមិរលួស.xlsx`
+                );
+              } else {
+                exportToExcel(records, stats);
+              }
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+            title={selectedGroup !== 'all' ? `ទាញយក Excel តែសមាជិកក្រុមទី ${selectedGroup}` : 'ទាញយក Excel គ្រប់សមាជិកទាំងអស់'}
           >
             <Download className="w-4 h-4" />
-            <span>ទាញយក Excel (.xlsx)</span>
+            <span>{selectedGroup !== 'all' ? `ទាញយក Excel (ក្រុមទី ${selectedGroup})` : 'ទាញយក Excel (.xlsx)'}</span>
           </button>
 
           {/* Age & Gender Summary */}
@@ -625,26 +656,37 @@ export default function SpreadsheetView({
             <span>រចនាសម្ព័ន្ធបក្ស (មានរូបថត)</span>
           </button>
 
+          {/* Preview Official A4 View Button */}
+          <button
+            id="header-preview-btn"
+            onClick={() => onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs hover:shadow-md cursor-pointer border border-sky-600"
+            title={selectedGroup !== 'all' ? `មើលគំរូទម្រង់បោះពុម្ព A4 ក្រុមទី ${selectedGroup} (Preview)` : 'មើលគំរូទម្រង់បោះពុម្ព A4 ជាផ្លូវការ (Preview A4)'}
+          >
+            <Eye className="w-4 h-4 text-sky-200" />
+            <span>មើលគំរូ (Preview)</span>
+          </button>
+
           {/* Save as PDF */}
           <button
             id="header-save-pdf-btn"
-            onClick={onOpenPrint}
+            onClick={() => onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
-            title="ទម្រង់បោះពុម្ព និង រក្សាទុកជា PDF"
+            title={selectedGroup !== 'all' ? `ទម្រង់បោះពុម្ព និង រក្សាទុកជា PDF ក្រុមទី ${selectedGroup}` : 'ទម្រង់បោះពុម្ព និង រក្សាទុកជា PDF'}
           >
             <FileDown className="w-4 h-4" />
-            <span>រក្សាទុកជា PDF</span>
+            <span>{selectedGroup !== 'all' ? `រក្សាទុកជា PDF (ក្រុមទី ${selectedGroup})` : 'រក្សាទុកជា PDF'}</span>
           </button>
 
           {/* Official Print View */}
           <button
             id="header-print-btn"
-            onClick={onOpenPrint}
+            onClick={() => onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all', true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
-            title="បោះពុម្ពរបាយការណ៍ផ្លូវការ (A4)"
+            title={selectedGroup !== 'all' ? `បោះពុម្ពរបាយការណ៍ផ្លូវការក្រុមទី ${selectedGroup}` : 'បោះពុម្ពរបាយការណ៍ផ្លូវការ (A4)'}
           >
             <Printer className="w-4 h-4" />
-            <span>បោះពុម្ព (Print A4)</span>
+            <span>{selectedGroup !== 'all' ? `បោះពុម្ព (ក្រុមទី ${selectedGroup})` : 'បោះពុម្ព (Print A4)'}</span>
           </button>
 
           {/* Add Member Button */}
@@ -699,19 +741,21 @@ export default function SpreadsheetView({
       {/* 3. Search & Interactive Filter Bar */}
       <div className="bg-white border-b border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Search */}
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2" />
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-emerald-600 absolute left-2.5 top-2" />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="ស្វែងរកឈ្មោះ, អត្តសញ្ញាណប័ណ្ណ, មុខរបរ..."
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-hidden focus:ring-1 focus:ring-emerald-500 focus:bg-white"
+            placeholder="ស្វែងរកឈ្មោះ, លេខអត្តសញ្ញាណប័ណ្ណ... (Ctrl+K)"
+            className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-800 placeholder:text-slate-400 font-medium"
           />
           {searchTerm && (
             <button 
               onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              className="absolute right-2 top-1.5 text-slate-400 hover:text-rose-600 text-xs font-bold p-0.5 rounded cursor-pointer"
+              title="សម្អាតពាក្យស្វែងរក"
             >
               ✕
             </button>
@@ -735,6 +779,34 @@ export default function SpreadsheetView({
                 </option>
               ))}
             </select>
+            <button
+              onClick={() => onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all')}
+              className="flex items-center gap-1 px-2 py-0.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 rounded text-[11px] font-bold transition-colors cursor-pointer shadow-2xs ml-0.5"
+              title={selectedGroup !== 'all' ? `មើលគំរូទម្រង់បោះពុម្ព A4 ក្រុមទី ${selectedGroup} (Preview)` : 'មើលគំរូទម្រង់បោះពុម្ព A4 ទាំងអស់ (Preview A4)'}
+            >
+              <Eye className="w-3 h-3 text-sky-700" />
+              <span>Preview</span>
+            </button>
+            {selectedGroup !== 'all' && (
+              <div className="flex items-center gap-1 ml-0.5">
+                <button
+                  onClick={() => onOpenPrint(parseInt(selectedGroup, 10), true)}
+                  className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold transition-colors cursor-pointer"
+                  title={`ទម្រង់បោះពុម្ព និង រក្សាទុកជា PDF ក្រុមទី ${selectedGroup}`}
+                >
+                  <FileDown className="w-3 h-3" />
+                  <span>PDF/Print</span>
+                </button>
+                <button
+                  onClick={() => exportToExcel(filteredRecords, stats, `បញ្ជីរាយនាមសមាជិកបក្ស_ក្រុមទី${selectedGroup}_ភូមិរលួស.xlsx`)}
+                  className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded text-[11px] font-bold transition-colors cursor-pointer"
+                  title={`ទាញយក Excel ក្រុមទី ${selectedGroup}`}
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Excel</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Gender Filter */}
@@ -860,7 +932,7 @@ export default function SpreadsheetView({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
             <span>
-              <strong>លោក {stats.teamLeader || 'ផូ វុធ'}</strong> ជា <strong>ប្រធានក្រុមការងារចុះជួយភូមិរលួស</strong> (ចុះហត្ថលេខាលើទំព័រទី១៣ នៃរបាយការណ៍បក្ស ជាមួយ មេភូមិ {stats.villageHead})
+              <strong>លោក {stats.teamLeader || 'ផូ វុធ'}</strong> ជា <strong>ប្រធានក្រុមការងារចុះជួយភូមិរលួស</strong> (ចុះហត្ថលេខាលើរបាយការណ៍បក្ស ជាមួយ ប្រធានសាខាគណបក្សភូមិ {stats.villageHead})
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -871,7 +943,7 @@ export default function SpreadsheetView({
               មើលទំព័រស្ថិតិ & ហត្ថលេខា
             </button>
             <button
-              onClick={onOpenPrint}
+              onClick={() => onOpenPrint(selectedGroup !== 'all' ? parseInt(selectedGroup, 10) : 'all')}
               className="px-2.5 py-1 bg-indigo-700 hover:bg-indigo-800 text-white rounded font-medium cursor-pointer shadow-2xs"
             >
               មើលទម្រង់បោះពុម្ពផ្លូវការ
@@ -934,18 +1006,67 @@ export default function SpreadsheetView({
               <th className="w-16 bg-slate-100 px-2 py-1 text-[11px] text-slate-500">សកម្មភាព</th>
             </tr>
 
-            {/* Field Titles Header Row */}
-            <tr className="bg-slate-200 text-slate-900 font-bold divide-x divide-slate-300 border-b-2 border-slate-400 text-center">
-              <th className="p-1.5 w-12 text-slate-500 font-mono text-[10px]">#</th>
-              {COLUMN_DEFINITIONS.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-800 font-semibold"
-                >
-                  {col.label}
-                </th>
-              ))}
-              <th className="px-2 py-1.5 text-center text-xs text-slate-800">សកម្មភាព</th>
+            {/* Field Titles Header Row: Official Hierarchical Layout */}
+            <tr className="bg-slate-200 text-slate-900 font-bold divide-x divide-slate-300 border-b border-slate-300 text-center font-kantumruy">
+              <th rowSpan={2} className="p-1.5 w-12 text-slate-600 font-mono text-[10px] align-middle bg-slate-200">
+                #
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200">
+                ល.រ
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200">
+                រូបថត
+              </th>
+              <th rowSpan={2} className="px-3 py-1.5 text-left text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 min-w-[150px]">
+                នាមត្រកូល-នាមខ្លួន
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200">
+                ភេទ
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200">
+                អាយុ
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 leading-tight">
+                ថ្ងៃខែឆ្នាំ<br />កំណើត
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 leading-tight">
+                លេខអត្ត<br />សញ្ញាណប័ណ្ណ
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 leading-tight">
+                លេខអត្ត<br />បក្ស
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 leading-tight">
+                ថ្ងៃខែឆ្នាំ<br />ចូលបក្ស
+              </th>
+              <th colSpan={4} className="px-2 py-1 text-center text-xs whitespace-nowrap text-slate-900 font-bold bg-slate-300/80 border-b border-slate-300">
+                បញ្ជី គ.ជ.ប
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 leading-tight">
+                ក្រុម<br />បក្ស
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 leading-tight min-w-[120px]">
+                តួនាទី<br />ក្នុងបក្ស
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200">
+                មុខរបរ
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 min-w-[120px]">
+                ស្ថានគ្រួសារ
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs whitespace-nowrap text-slate-900 font-bold align-middle bg-slate-200 min-w-[120px]">
+                កត់សម្គាល់
+              </th>
+              <th rowSpan={2} className="px-2 py-1.5 text-center text-xs text-slate-800 align-middle bg-slate-200 w-16">
+                សកម្មភាព
+              </th>
+            </tr>
+
+            {/* Sub-Header Row for បញ្ជី គ.ជ.ប */}
+            <tr className="bg-slate-200 text-slate-800 font-bold divide-x divide-slate-300 border-b-2 border-slate-400 text-center font-kantumruy text-[11px]">
+              <th className="px-2 py-1 text-center whitespace-nowrap">ឈ្មោះការិ</th>
+              <th className="px-2 py-1 text-center whitespace-nowrap">កូដឃុំ</th>
+              <th className="px-2 py-1 text-center whitespace-nowrap">លេខការិ</th>
+              <th className="px-2 py-1 text-center whitespace-nowrap">ល.រ គជប</th>
             </tr>
           </thead>
 
@@ -1009,7 +1130,7 @@ export default function SpreadsheetView({
                               ? 'ring-2 ring-emerald-600 ring-inset bg-emerald-50/40 z-10'
                               : ''
                           } ${
-                            col.key === 'id' || col.key === 'gender' || col.key === 'age' || col.key === 'partyGroup' || col.key === 'photoUrl'
+                            col.key === 'id' || col.key === 'gender' || col.key === 'age' || col.key === 'partyGroup' || col.key === 'photoUrl' || col.key === 'partyCardNo' || col.key === 'joinDate'
                               ? 'text-center'
                               : col.key === 'dob' || col.key === 'officeNo'
                               ? 'text-center'
@@ -1030,16 +1151,23 @@ export default function SpreadsheetView({
                               className="w-full h-full p-0 border-none outline-hidden bg-white text-xs font-semibold text-slate-900"
                             />
                           ) : col.key === 'photoUrl' ? (
-                            <div className="flex items-center justify-center py-0.5">
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onEditRecord) onEditRecord(record);
+                              }}
+                              className="flex items-center justify-center py-0.5 cursor-pointer group"
+                              title="ចុចដើម្បីកែប្រែរូបថត 3x4 របស់សមាជិកនេះ"
+                            >
                               {val ? (
                                 <img
                                   src={String(val)}
                                   alt="3x4"
-                                  className="w-7 h-9 object-cover rounded border border-slate-300 shadow-2xs"
+                                  className="w-7 h-9 object-cover rounded border border-slate-300 shadow-2xs group-hover:ring-2 group-hover:ring-emerald-500 transition-all"
                                 />
                               ) : (
-                                <div className="w-7 h-9 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-[9px] text-slate-400 font-medium">
-                                  3x4
+                                <div className="w-7 h-9 rounded border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-[9px] text-slate-400 font-medium group-hover:border-emerald-500 group-hover:text-emerald-600 transition-colors">
+                                  + 3x4
                                 </div>
                               )}
                             </div>
@@ -1068,21 +1196,40 @@ export default function SpreadsheetView({
                     })}
 
                     {/* Actions Column */}
-                    <td className="w-16 text-center px-1 py-1">
-                      <div className="flex items-center justify-center space-x-1">
+                    <td className="w-28 text-center px-1.5 py-1">
+                      <div className="flex items-center justify-center gap-1">
                         <button
-                          onClick={() => handleCellDoubleClick(record.id, 'fullName', record.fullName)}
-                          className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-slate-200 rounded cursor-pointer"
-                          title="កែសម្រួល"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenPrint(record.partyGroup);
+                          }}
+                          className="px-1.5 py-0.5 text-xs font-bold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-300 rounded flex items-center gap-0.5 cursor-pointer transition-colors shadow-2xs"
+                          title={`មើលគំរូក្រុមទី ${record.partyGroup} ក្នុងទម្រង់បោះពុម្ព A4 (Preview)`}
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Eye className="w-3.5 h-3.5 text-sky-700" />
+                          <span className="hidden sm:inline text-[11px]">គំរូ</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onEditRecord) {
+                              onEditRecord(record);
+                            } else {
+                              handleCellDoubleClick(record.id, 'fullName', record.fullName);
+                            }
+                          }}
+                          className="px-2 py-0.5 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          title="កែសម្រួលទិន្នន័យ និងរូបថត 3x4"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>កែ</span>
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             requestDeleteRecord(record.id, record.fullName);
                           }}
-                          className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-100 rounded cursor-pointer transition-colors"
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer transition-colors"
                           title="លុបទិន្នន័យ"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
