@@ -38,7 +38,10 @@
 @media print {
   @page {
     size: A4 landscape;
-    margin: 6mm 6mm 6mm 6mm;
+    margin-top: 6mm;
+    margin-right: 6mm;
+    margin-bottom: 6mm;
+    margin-left: 12mm; /* 1.2cm គែមឆ្វេងសម្រាប់ចង/កិបជាសៀវភៅ (Book Binding Gutter) */
   }
   
   html, body {
@@ -66,7 +69,7 @@
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     margin: 0 !important;
-    padding: 2mm 0 !important;
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
     width: 100% !important;

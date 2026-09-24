@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { MemberRecord, VillageStats } from '@/lib/types';
-import { ArrowLeft, Printer, FileDown, CheckCircle2, Info, Loader2, ExternalLink, Calendar, Users, Download, Filter, CheckSquare, Layers, X } from 'lucide-react';
+import { ArrowLeft, Printer, FileDown, CheckCircle2, Info, Loader2, ExternalLink, Calendar, Users, Download, Filter, CheckSquare, Layers, X, BookOpen } from 'lucide-react';
 import { calculateAgeGenderStats } from '@/lib/ageCalculations';
 import TacteingDivider from './TacteingDivider';
 import { DEFAULT_AVATARS } from '@/lib/orgInitialData';
@@ -69,6 +69,11 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [pdfStatus, setPdfStatus] = useState<string | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Left Paper Margin for Book Binding (user request: "ចង់តម្រឹមក្រដាសខាងឆ្វេង 1,2cm សំរាប់បោះពុម្ភធ្វើជាសៀវភៅ")
+  // Default to 1.2 cm (12mm)
+  const [leftMarginCm, setLeftMarginCm] = useState<number>(1.2);
+  const [showBindingGuide, setShowBindingGuide] = useState<boolean>(true);
 
   // Month selection: 'auto' automatically tracks real-time current month (all 12 months)
   // or integer 0..11 for specific manual month override
@@ -398,9 +403,17 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
       const pageWidth = 297;
       const pageHeight = 210;
 
+      // Exact Left Margin for Book Binding (user request: 1.2cm = 12mm)
+      const marginL = leftMarginCm * 10; // e.g. 1.2 * 10 = 12mm
+      const marginR = 6; // 6mm
+      const marginT = 5; // 5mm
+      const marginB = 5; // 5mm
+      const contentW = pageWidth - marginL - marginR; // 297 - 12 - 6 = 279mm
+      const contentH = pageHeight - marginT - marginB; // 210 - 5 - 5 = 200mm
+
       for (let i = 0; i < pageElements.length; i++) {
         const pageEl = pageElements[i];
-        setPdfStatus(`កំពុងបម្លែងទំព័រទី ${toKhmerNum(i + 1)} / ${toKhmerNum(pageElements.length)} ជា PDF...`);
+        setPdfStatus(`កំពុងបម្លែងទំព័រទី ${toKhmerNum(i + 1)} / ${toKhmerNum(pageElements.length)} ជា PDF (គែមឆ្វេង ${leftMarginCm}cm)...`);
 
         const canvas = await html2canvas(pageEl, {
           scale: 1.5,
@@ -411,6 +424,22 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
           windowWidth: Math.max(pageEl.scrollWidth, 1200),
           onclone: (clonedDoc) => {
             try {
+              // Hide on-screen binding guide lines in cloned doc so they are not captured in PDF
+              const guides = clonedDoc.querySelectorAll('.binding-guide-line');
+              guides.forEach((g) => {
+                (g as HTMLElement).style.display = 'none';
+              });
+
+              // Clean cloned page sheet of outer padding/border/shadow
+              const clonedPage = clonedDoc.getElementById(pageEl.id);
+              if (clonedPage) {
+                clonedPage.style.boxShadow = 'none';
+                clonedPage.style.border = 'none';
+                clonedPage.style.borderRadius = '0px';
+                clonedPage.style.padding = '0px';
+                clonedPage.style.margin = '0px';
+              }
+
               const canvasHelper = document.createElement('canvas');
               const ctx = canvasHelper.getContext('2d');
               if (!ctx) return;
@@ -444,7 +473,8 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
           pdf.addPage('a4', 'landscape');
         }
 
-        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+        // Output image with calibrated left margin for book binding
+        pdf.addImage(imgData, 'JPEG', marginL, marginT, contentW, contentH);
       }
 
       const pdfFileName = selectedGroup === 'all'
@@ -649,6 +679,19 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
 
   return (
     <div className="min-h-screen bg-slate-200/80 py-6 px-2 sm:px-6 font-kantumruy">
+      {/* Dynamic @page CSS rule for user-selected left margin (book binding gutter) */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin-top: 6mm !important;
+            margin-right: 6mm !important;
+            margin-bottom: 6mm !important;
+            margin-left: ${leftMarginCm * 10}mm !important;
+          }
+        }
+      `}</style>
+
       {/* Top Floating Action Bar (Hidden during Print) */}
       <div className="max-w-7xl mx-auto mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white px-5 py-3.5 rounded-xl border border-slate-200 shadow-sm no-print sticky top-2 z-50">
         <div className="flex items-center gap-3 flex-wrap">
@@ -951,6 +994,35 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
               រួមបញ្ចូលទំព័រសង្ខេប
             </span>
           </label>
+
+          {/* Book Binding Margin Control (User Request: 1.2cm for book binding) */}
+          <div className="flex items-center gap-2 bg-indigo-50/90 hover:bg-indigo-100/90 px-2.5 py-1.5 rounded-lg border border-indigo-300 transition-colors shadow-2xs">
+            <div className="flex items-center gap-1.5 font-bold text-indigo-950">
+              <BookOpen className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+              <span className="text-[11.5px]">គែមឆ្វេងកិបសៀវភៅ ៖</span>
+            </div>
+            <select
+              id="book-left-margin-select"
+              value={leftMarginCm.toString()}
+              onChange={(e) => setLeftMarginCm(parseFloat(e.target.value))}
+              className="bg-white border border-indigo-300 rounded px-2 py-0.5 text-xs font-bold text-indigo-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+              title="កម្រាស់គែមក្រដាសខាងឆ្វេងសម្រាប់ដេរ ឬកិបជាក្បាលសៀវភៅ"
+            >
+              <option value="1.2">⭐ ១.២ cm (ស្តង់ដារកិបសៀវភៅ)</option>
+              <option value="1.5">១.៥ cm (កិបសៀវភៅក្រាស់)</option>
+              <option value="1.0">១.០ cm (កិបស្តើង)</option>
+              <option value="0.6">០.៦ cm (ធម្មតា សងខាងស្មើ)</option>
+            </select>
+            <label className="flex items-center gap-1 cursor-pointer select-none text-indigo-900 text-[11px] font-medium" title="បង្ហាញបន្ទាត់សម្គាល់គែមកិបលើអេក្រង់">
+              <input
+                type="checkbox"
+                checked={showBindingGuide}
+                onChange={(e) => setShowBindingGuide(e.target.checked)}
+                className="w-3.5 h-3.5 rounded border-indigo-400 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <span>បន្ទាត់កិប</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1020,8 +1092,35 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
               <div
                 key={page.id}
                 id={`official-page-${page.pageNumber}`}
-                className="official-page-sheet max-w-7xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-slate-300 print:p-0 print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none flex flex-col justify-between print:min-h-[195mm]"
+                style={{
+                  paddingLeft: `${Math.max(24, Math.round(leftMarginCm * 38))}px`,
+                  paddingRight: '24px',
+                  paddingTop: '24px',
+                  paddingBottom: '24px',
+                }}
+                className="relative official-page-sheet max-w-7xl mx-auto bg-white rounded-xl shadow-lg border border-slate-300 print:p-0 print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none flex flex-col justify-between print:min-h-[195mm] transition-all"
               >
+                {/* On-screen visual guide for book binding margin (1.2cm) */}
+                {showBindingGuide && (
+                  <div
+                    className="binding-guide-line absolute left-0 top-0 bottom-0 pointer-events-none no-print border-r-2 border-dashed border-indigo-400/50 bg-indigo-50/15 z-10 flex flex-col justify-between select-none"
+                    style={{ width: `${Math.max(24, Math.round(leftMarginCm * 38))}px` }}
+                    title={`គែមខាងឆ្វេង ${leftMarginCm}cm សម្រាប់កិប/ដេរជាសៀវភៅ`}
+                  >
+                    <div className="p-1 flex items-center gap-1 text-[9px] font-bold text-indigo-800 bg-indigo-100/90 rounded-br-md w-fit shadow-2xs">
+                      <span>📖 គែមកិប {leftMarginCm}cm</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-8 py-4 text-indigo-400/60 font-semibold">
+                      <span className="text-[10px]">✕ កិប/ដេរ</span>
+                      <span className="text-[10px]">✕ កិប/ដេរ</span>
+                      <span className="text-[10px]">✕ កិប/ដេរ</span>
+                    </div>
+                    <div className="p-1 text-[8.5px] text-center text-indigo-600 font-semibold bg-indigo-50/80">
+                      Book Gutter
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex-1 flex flex-col">
                   {/* Official Header */}
                   {renderHeader()}
@@ -1156,8 +1255,35 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
             <div
               key={page.id}
               id={`official-page-${page.pageNumber}`}
-              className="official-page-sheet max-w-7xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-slate-300 print:p-0 print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none flex flex-col justify-between print:min-h-[195mm]"
+              style={{
+                paddingLeft: `${Math.max(24, Math.round(leftMarginCm * 38))}px`,
+                paddingRight: '24px',
+                paddingTop: '24px',
+                paddingBottom: '24px',
+              }}
+              className="relative official-page-sheet max-w-7xl mx-auto bg-white rounded-xl shadow-lg border border-slate-300 print:p-0 print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none flex flex-col justify-between print:min-h-[195mm] transition-all"
             >
+              {/* On-screen visual guide for book binding margin (1.2cm) */}
+              {showBindingGuide && (
+                <div
+                  className="binding-guide-line absolute left-0 top-0 bottom-0 pointer-events-none no-print border-r-2 border-dashed border-indigo-400/50 bg-indigo-50/15 z-10 flex flex-col justify-between select-none"
+                  style={{ width: `${Math.max(24, Math.round(leftMarginCm * 38))}px` }}
+                  title={`គែមខាងឆ្វេង ${leftMarginCm}cm សម្រាប់កិប/ដេរជាសៀវភៅ`}
+                >
+                  <div className="p-1 flex items-center gap-1 text-[9px] font-bold text-indigo-800 bg-indigo-100/90 rounded-br-md w-fit shadow-2xs">
+                    <span>📖 គែមកិប {leftMarginCm}cm</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-8 py-4 text-indigo-400/60 font-semibold">
+                    <span className="text-[10px]">✕ កិប/ដេរ</span>
+                    <span className="text-[10px]">✕ កិប/ដេរ</span>
+                    <span className="text-[10px]">✕ កិប/ដេរ</span>
+                  </div>
+                  <div className="p-1 text-[8.5px] text-center text-indigo-600 font-semibold bg-indigo-50/80">
+                    Book Gutter
+                  </div>
+                </div>
+              )}
+
               <div className="flex-1 flex flex-col">
                 {/* Official Page Header */}
                 {renderHeader()}
@@ -1411,6 +1537,14 @@ export default function OfficialPrintView({ records, stats, initialGroup = 'all'
 
             {/* Modal Body */}
             <div className="p-5 space-y-3.5">
+              {/* Margin Notice Badge */}
+              <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-950 text-xs">
+                <BookOpen className="w-4 h-4 text-indigo-700 shrink-0" />
+                <span>
+                  <strong>តម្រឹមគែមឆ្វេង ៖ {leftMarginCm} cm</strong> (បានកំណត់សម្រាប់កិប ឬដេរជាក្បាលសៀវភៅ មិនបាំងទិន្នន័យឡើយ)
+                </span>
+              </div>
+
               <p className="text-xs text-slate-600 font-medium">
                 ដើម្បីបោះពុម្ពបានច្បាស់ល្អឥតខ្ចោះ និងមិនជាប់គាំង សូមជ្រើសរើសជម្រើសសមស្របណាមួយខាងក្រោម៖
               </p>
